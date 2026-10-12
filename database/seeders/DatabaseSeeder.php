@@ -15,15 +15,11 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // Matikan pembuatan user bawaan Laravel
-        // User::factory(10)->create();
-        // User::factory()->create([
-        //     'name' => 'Test User',
-        //     'email' => 'test@example.com',
-        // ]);
-
-        // Panggil seeder milik Anda
+        // Panggil seeder sesuai urutan relasi (Induk -> Anak)
         $this->call([
+            CabangGedungSeeder::class,
+            JabatanStatusSeeder::class,
+            HakAksesSeeder::class,
             PenggunaSeeder::class,
         ]);
     }
