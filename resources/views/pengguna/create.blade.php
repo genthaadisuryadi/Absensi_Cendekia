@@ -14,7 +14,6 @@
         </div>
     </div>
 
-    {{-- ERROR GLOBAL --}}
     @if ($errors->any())
         <div class="alert alert-danger">
             <div class="font-bold mb-1"><i class="bi bi-exclamation-triangle-fill"></i> Periksa kembali isian Anda:</div>
@@ -27,8 +26,6 @@
     @endif
 
     <div class="form-card">
-
-        {{-- BANNER --}}
         <div class="profile-banner">
             <div class="avatar-lg"><i class="bi bi-person-plus-fill"></i></div>
             <div class="min-w-0">
@@ -41,8 +38,6 @@
             @csrf
 
             <div class="form-body">
-
-                {{-- ===== DATA UTAMA ===== --}}
                 <div class="field full" style="font-size:.7rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#6366f1;">
                     <i class="bi bi-person-lines-fill"></i> Data Utama
                 </div>
@@ -51,16 +46,13 @@
                     <label for="jabatan_status">Status Jabatan</label>
                     <div class="input-icon">
                         <i class="bi bi-briefcase"></i>
-                        <select id="jabatan_status" name="jabatan_status"
-                            class="form-select @error('jabatan_status') is-invalid @enderror" required>
+                        <select id="jabatan_status" name="jabatan_status" class="form-select @error('jabatan_status') is-invalid @enderror" required>
                             <option value="">-- Pilih Jabatan --</option>
                             @foreach ($jabatans as $jab)
                                 @php
                                     $roleKey = str_replace(' ', '_', strtolower($jab->hak ?? $jab->jabatan_status));
                                 @endphp
-                                <option value="{{ $jab->id }}"
-                                    data-role="{{ $roleKey }}"
-                                    {{ old('jabatan_status') == $jab->id ? 'selected' : '' }}>
+                                <option value="{{ $jab->id }}" data-role="{{ $roleKey }}" {{ old('jabatan_status') == $jab->id ? 'selected' : '' }}>
                                     {{ $jab->jabatan_status }}
                                 </option>
                             @endforeach
@@ -73,9 +65,7 @@
                     <label for="nomor_induk">Nomor Induk (NIS / NIP)</label>
                     <div class="input-icon">
                         <i class="bi bi-person-badge"></i>
-                        <input type="text" id="nomor_induk" name="nomor_induk"
-                            class="form-control @error('nomor_induk') is-invalid @enderror"
-                            value="{{ old('nomor_induk') }}" placeholder="Contoh: 12300000" required>
+                        <input type="text" id="nomor_induk" name="nomor_induk" class="form-control @error('nomor_induk') is-invalid @enderror" value="{{ old('nomor_induk') }}" placeholder="Contoh: 12300000" required>
                     </div>
                     @error('nomor_induk') <div class="field-error">{{ $message }}</div> @enderror
                 </div>
@@ -84,9 +74,7 @@
                     <label for="nama">Nama Lengkap</label>
                     <div class="input-icon">
                         <i class="bi bi-person"></i>
-                        <input type="text" id="nama" name="nama"
-                            class="form-control @error('nama') is-invalid @enderror"
-                            value="{{ old('nama') }}" placeholder="Nama lengkap" required>
+                        <input type="text" id="nama" name="nama" class="form-control @error('nama') is-invalid @enderror" value="{{ old('nama') }}" placeholder="Nama lengkap" required>
                     </div>
                     @error('nama') <div class="field-error">{{ $message }}</div> @enderror
                 </div>
@@ -95,52 +83,50 @@
                     <label for="cabang_gedung">Cabang Gedung</label>
                     <div class="input-icon">
                         <i class="bi bi-geo-alt"></i>
-                        <select id="cabang_gedung" name="cabang_gedung"
-                            class="form-select @error('cabang_gedung') is-invalid @enderror" required>
+                        <select id="cabang_gedung" name="cabang_gedung" class="form-select @error('cabang_gedung') is-invalid @enderror" required>
                             <option value="">-- Pilih Lokasi --</option>
                             @foreach ($lokasis as $lok)
-                                <option value="{{ $lok->id }}" {{ old('cabang_gedung') == $lok->id ? 'selected' : '' }}>
-                                    {{ $lok->lokasi }}
-                                </option>
+                                <option value="{{ $lok->id }}" {{ old('cabang_gedung') == $lok->id ? 'selected' : '' }}>{{ $lok->lokasi }}</option>
                             @endforeach
                         </select>
                     </div>
                     @error('cabang_gedung') <div class="field-error">{{ $message }}</div> @enderror
                 </div>
 
-                {{-- FIELD KHUSUS SISWA: TAG RFID --}}
-                <div class="field full" id="field-tag-wrapper">
-                    <label for="tag">Tag Kartu RFID <span class="opt">(Khusus Siswa)</span></label>
-                    <div class="input-icon">
-                        <i class="bi bi-upc-scan"></i>
-                        <input type="text" id="tag" name="tag"
-                            class="form-control @error('tag') is-invalid @enderror"
-                            value="{{ old('tag') }}" placeholder="Scan kartu RFID di mesin / isi UID manual">
+                {{-- FIELD KHUSUS SISWA: KELAS & TAG RFID --}}
+                <div class="field full grid grid-cols-1 md:grid-cols-2 gap-x-5" id="field-siswa-wrapper" style="display:none; padding:0; border:none; margin:0;">
+                    <div class="field" style="margin-top:0;">
+                        <label for="kelas">Kelas <span class="opt">(Khusus Siswa)</span></label>
+                        <div class="input-icon">
+                            <i class="bi bi-mortarboard"></i>
+                            <input type="text" id="kelas" name="kelas" class="form-control @error('kelas') is-invalid @enderror" value="{{ old('kelas') }}" placeholder="Contoh: 10 RPL 1">
+                        </div>
+                        @error('kelas') <div class="field-error">{{ $message }}</div> @enderror
                     </div>
-                    <small class="text-slate-400 text-xs mt-1 block">Hanya diisi untuk akun Siswa yang melakukan tap kartu di mesin RFID.</small>
-                    @error('tag') <div class="field-error">{{ $message }}</div> @enderror
+
+                    <div class="field" style="margin-top:0;">
+                        <label for="tag">Tag Kartu RFID <span class="opt">(Khusus Siswa)</span></label>
+                        <div class="input-icon">
+                            <i class="bi bi-upc-scan"></i>
+                            <input type="text" id="tag" name="tag" class="form-control @error('tag') is-invalid @enderror" value="{{ old('tag') }}" placeholder="Scan kartu / isi UID manual">
+                        </div>
+                        @error('tag') <div class="field-error">{{ $message }}</div> @enderror
+                    </div>
                 </div>
 
                 {{-- FIELD KHUSUS ORANG TUA: PILIH ANAK (SISWA) --}}
                 <div class="field full" id="field-anak-wrapper" style="display:none;">
-                    <label class="font-semibold text-slate-700 mb-1 block">
-                        <i class="bi bi-people-fill text-indigo-600"></i> Pilih Siswa (Anak) yang Dipantau
-                    </label>
+                    <label class="font-semibold text-slate-700 mb-1 block"><i class="bi bi-people-fill text-indigo-600"></i> Pilih Siswa (Anak) yang Dipantau</label>
                     <p class="text-xs text-slate-500 mb-2">Centang satu atau lebih siswa yang merupakan anak dari Orang Tua ini:</p>
-
                     <div class="border border-slate-200 rounded-xl p-3 bg-slate-50 max-h-52 overflow-y-auto space-y-2">
                         @forelse ($siswaList as $siswa)
                             <label class="flex items-center gap-3 p-2 rounded-lg bg-white border border-slate-200/80 hover:border-indigo-400 cursor-pointer transition">
-                                <input type="checkbox" name="siswa_ids[]" value="{{ $siswa->nomor_induk }}"
-                                    class="w-4 h-4 text-indigo-600 rounded"
-                                    {{ in_array($siswa->nomor_induk, old('siswa_ids', [])) ? 'checked' : '' }}>
+                                <input type="checkbox" name="siswa_ids[]" value="{{ $siswa->nomor_induk }}" class="w-4 h-4 text-indigo-600 rounded" {{ in_array($siswa->nomor_induk, old('siswa_ids', [])) ? 'checked' : '' }}>
                                 <span class="text-sm font-semibold text-slate-700">{{ $siswa->nama }}</span>
                                 <span class="text-xs text-slate-400 ml-auto">NIS: {{ $siswa->nomor_induk }}</span>
                             </label>
                         @empty
-                            <div class="text-sm text-amber-600 py-2">
-                                <i class="bi bi-info-circle"></i> Belum ada data pengguna dengan jabatan <strong>Siswa</strong>. Silakan tambahkan akun Siswa terlebih dahulu.
-                            </div>
+                            <div class="text-sm text-amber-600 py-2"><i class="bi bi-info-circle"></i> Belum ada data pengguna dengan jabatan <strong>Siswa</strong>.</div>
                         @endforelse
                     </div>
                     @error('siswa_ids') <div class="field-error">{{ $message }}</div> @enderror
@@ -155,13 +141,8 @@
                     <label for="password">Password</label>
                     <div class="input-icon">
                         <i class="bi bi-lock"></i>
-                        <input type="password" id="password" name="password" style="padding-right:2.8rem"
-                            class="form-control @error('password') is-invalid @enderror"
-                            placeholder="Minimal 8 karakter" required>
-                        <button type="button" class="pw-toggle" data-target="password" tabindex="-1" aria-label="Tampilkan password"
-                            style="position:absolute;right:.5rem;top:50%;transform:translateY(-50%);width:2rem;height:2rem;border:0;background:none;color:#94a3b8;border-radius:8px;cursor:pointer;z-index:3">
-                            <i class="bi bi-eye"></i>
-                        </button>
+                        <input type="password" id="password" name="password" style="padding-right:2.8rem" class="form-control @error('password') is-invalid @enderror" placeholder="Minimal 8 karakter" required>
+                        <button type="button" class="pw-toggle" data-target="password" tabindex="-1" style="position:absolute;right:.5rem;top:50%;transform:translateY(-50%);width:2rem;height:2rem;border:0;background:none;color:#94a3b8;cursor:pointer;"><i class="bi bi-eye"></i></button>
                     </div>
                     @error('password') <div class="field-error">{{ $message }}</div> @enderror
                 </div>
@@ -170,25 +151,15 @@
                     <label for="password_confirmation">Konfirmasi Password</label>
                     <div class="input-icon">
                         <i class="bi bi-shield-check"></i>
-                        <input type="password" id="password_confirmation" name="password_confirmation" style="padding-right:2.8rem"
-                            class="form-control" placeholder="Ulangi password" required>
-                        <button type="button" class="pw-toggle" data-target="password_confirmation" tabindex="-1" aria-label="Tampilkan password"
-                            style="position:absolute;right:.5rem;top:50%;transform:translateY(-50%);width:2rem;height:2rem;border:0;background:none;color:#94a3b8;border-radius:8px;cursor:pointer;z-index:3">
-                            <i class="bi bi-eye"></i>
-                        </button>
+                        <input type="password" id="password_confirmation" name="password_confirmation" style="padding-right:2.8rem" class="form-control" placeholder="Ulangi password" required>
+                        <button type="button" class="pw-toggle" data-target="password_confirmation" tabindex="-1" style="position:absolute;right:.5rem;top:50%;transform:translateY(-50%);width:2rem;height:2rem;border:0;background:none;color:#94a3b8;cursor:pointer;"><i class="bi bi-eye"></i></button>
                     </div>
                 </div>
-
             </div>
 
-            {{-- AKSI --}}
             <div class="form-actions">
-                <a href="{{ route('pengguna.index') }}" class="btn-x btn-cancel">
-                    <i class="bi bi-x-lg"></i> Batal
-                </a>
-                <button type="submit" class="btn-x btn-submit">
-                    <i class="bi bi-check2-circle"></i> Simpan Pengguna
-                </button>
+                <a href="{{ route('pengguna.index') }}" class="btn-x btn-cancel"><i class="bi bi-x-lg"></i> Batal</a>
+                <button type="submit" class="btn-x btn-submit"><i class="bi bi-check2-circle"></i> Simpan Pengguna</button>
             </div>
         </form>
     </div>
@@ -208,7 +179,8 @@
     const jabatanSelect = document.getElementById('jabatan_status');
     const nomorIndukWrapper = document.getElementById('field-nomor-induk-wrapper');
     const nomorIndukInput = document.getElementById('nomor_induk');
-    const tagWrapper = document.getElementById('field-tag-wrapper');
+    const siswaWrapper = document.getElementById('field-siswa-wrapper');
+    const kelasInput = document.getElementById('kelas');
     const tagInput = document.getElementById('tag');
     const anakWrapper = document.getElementById('field-anak-wrapper');
 
@@ -221,12 +193,12 @@
         const isSiswa = role.includes('general') || role.includes('siswa') || val === '3';
 
         if (isOrtu) {
-            // Sembunyikan Nomor Induk & Tag RFID untuk Orang Tua
             nomorIndukWrapper.style.display = 'none';
             nomorIndukInput.removeAttribute('required');
             nomorIndukInput.value = '';
 
-            tagWrapper.style.display = 'none';
+            siswaWrapper.style.display = 'none';
+            kelasInput.value = '';
             tagInput.value = '';
 
             anakWrapper.style.display = 'block';
@@ -234,14 +206,14 @@
             nomorIndukWrapper.style.display = 'block';
             nomorIndukInput.setAttribute('required', 'required');
 
-            tagWrapper.style.display = 'block';
+            siswaWrapper.style.display = 'grid';
             anakWrapper.style.display = 'none';
         } else {
-            // Admin / SuperAdmin
             nomorIndukWrapper.style.display = 'block';
             nomorIndukInput.setAttribute('required', 'required');
 
-            tagWrapper.style.display = 'none';
+            siswaWrapper.style.display = 'none';
+            kelasInput.value = '';
             tagInput.value = '';
             anakWrapper.style.display = 'none';
         }

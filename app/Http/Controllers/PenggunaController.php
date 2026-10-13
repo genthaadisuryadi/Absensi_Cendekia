@@ -60,7 +60,6 @@ class PenggunaController extends Controller
 
         $lokasis = DB::table('cabang_gedung')->get();
 
-        // Ambil daftar pengguna dengan role Siswa untuk dipilih oleh Orang Tua
         $siswaList = DB::table('pengguna')
             ->join('jabatan_status', 'pengguna.jabatan_status', '=', 'jabatan_status.id')
             ->join('hak_akses', 'jabatan_status.hak_akses', '=', 'hak_akses.id')
@@ -85,7 +84,6 @@ class PenggunaController extends Controller
         $isSiswa = in_array($roleNormalized, ['general', 'siswa'], true) || (int) $request->jabatan_status === 3;
         $isOrtu  = in_array($roleNormalized, ['orang_tua'], true) || (int) $request->jabatan_status === 4;
 
-        // Jika Orang Tua, buat nomor_induk otomatis di belakang layar karena tidak diinputkan
         if ($isOrtu && !$request->filled('nomor_induk')) {
             do {
                 $generatedId = (string) random_int(800000, 899999);
@@ -94,12 +92,13 @@ class PenggunaController extends Controller
             $request->merge(['nomor_induk' => $generatedId]);
         }
 
-        // Kolom 'tag' di MySQL bersifat NOT NULL, isi '' jika bukan Siswa atau kosong
-        $tagValue = ($isSiswa && $request->filled('tag')) ? trim($request->tag) : '';
+        $tagValue   = ($isSiswa && $request->filled('tag')) ? trim($request->tag) : '';
+        $kelasValue = ($isSiswa && $request->filled('kelas')) ? trim($request->kelas) : null;
 
         $request->validate([
             'nomor_induk'    => 'required|unique:pengguna,nomor_induk',
             'nama'           => 'required|string|max:255',
+            'kelas'          => 'nullable|string|max:100',
             'tag'            => $tagValue !== '' ? ['nullable', Rule::unique('pengguna', 'tag')] : ['nullable'],
             'jabatan_status' => 'required|exists:jabatan_status,id',
             'cabang_gedung'  => 'required|exists:cabang_gedung,id',
@@ -114,6 +113,7 @@ class PenggunaController extends Controller
         $pengguna = Pengguna::create([
             'nomor_induk'    => $request->nomor_induk,
             'nama'           => $request->nama,
+            'kelas'          => $kelasValue,
             'tag'            => $tagValue,
             'jabatan_status' => $request->jabatan_status,
             'cabang_gedung'  => $request->cabang_gedung,
@@ -177,17 +177,17 @@ class PenggunaController extends Controller
         $isSiswa = in_array($roleNormalized, ['general', 'siswa'], true) || (int) $request->jabatan_status === 3;
         $isOrtu  = in_array($roleNormalized, ['orang_tua'], true) || (int) $request->jabatan_status === 4;
 
-        // Jika Orang Tua, pertahankan nomor_induk yang sudah ada tanpa perlu input dari form
         if ($isOrtu || !$request->filled('nomor_induk')) {
             $request->merge(['nomor_induk' => $user->nomor_induk]);
         }
 
-        // Kolom 'tag' di MySQL bersifat NOT NULL, isi '' jika bukan Siswa atau kosong
-        $tagValue = ($isSiswa && $request->filled('tag')) ? trim($request->tag) : '';
+        $tagValue   = ($isSiswa && $request->filled('tag')) ? trim($request->tag) : '';
+        $kelasValue = ($isSiswa && $request->filled('kelas')) ? trim($request->kelas) : null;
 
         $request->validate([
             'nomor_induk'    => ['required', Rule::unique('pengguna', 'nomor_induk')->ignore($user->nomor_induk, 'nomor_induk')],
             'nama'           => 'required|string|max:255',
+            'kelas'          => 'nullable|string|max:100',
             'tag'            => $tagValue !== '' ? ['nullable', Rule::unique('pengguna', 'tag')->ignore($user->nomor_induk, 'nomor_induk')] : ['nullable'],
             'jabatan_status' => 'required|exists:jabatan_status,id',
             'cabang_gedung'  => 'required|exists:cabang_gedung,id',
@@ -202,6 +202,7 @@ class PenggunaController extends Controller
         $dataUpdate = [
             'nomor_induk'    => $request->nomor_induk,
             'nama'           => $request->nama,
+            'kelas'          => $kelasValue,
             'tag'            => $tagValue,
             'jabatan_status' => $request->jabatan_status,
             'cabang_gedung'  => $request->cabang_gedung,
@@ -213,7 +214,6 @@ class PenggunaController extends Controller
 
         $user->update($dataUpdate);
 
-        // Sinkronisasi relasi anak jika role adalah Orang Tua
         if ($isOrtu) {
             $user->anak()->sync($request->input('siswa_ids', []));
         } else {
