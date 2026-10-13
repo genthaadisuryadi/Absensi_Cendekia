@@ -79,7 +79,7 @@
             <!-- Judul Form -->
             <div class="mb-8">
                 <h2 class="text-2xl font-extrabold text-slate-900 tracking-tight">Masuk ke akun</h2>
-                <p class="text-xs text-slate-400 mt-1">Masukkan Nomor Induk dan password Anda untuk masuk.</p>
+                <p class="text-xs text-slate-400 mt-1">Masukkan NIS/NIP atau Nama Lengkap beserta password Anda untuk masuk.</p>
             </div>
 
             <!-- Status Sesi (jika ada) -->
@@ -93,7 +93,7 @@
             @if ($errors->any())
                 <div class="mb-5 p-3.5 bg-rose-50 border border-rose-200 text-rose-600 rounded-xl text-xs font-medium space-y-1">
                     @foreach ($errors->all() as $error)
-                        <p>• {{ $error }}</p>
+                         <p>{{ $error }}</p>
                     @endforeach
                 </div>
             @endif
@@ -102,10 +102,10 @@
             <form method="POST" action="{{ route('login') }}" class="space-y-5">
                 @csrf
 
-                <!-- Input Nomor Induk -->
+                <!-- Input Nomor Induk / Nama Lengkap -->
                 <div>
                     <label for="nomor_induk" class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">
-                        Nomor Induk
+                        ID Login / Nama Lengkap
                     </label>
                     <div class="relative">
                         <i class="bi bi-person absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
@@ -114,7 +114,7 @@
                             name="nomor_induk" 
                             id="nomor_induk" 
                             value="{{ old('nomor_induk') }}"
-                            placeholder="Masukkan Nomor Induk" 
+                            placeholder="Masukkan NIS/NIP atau Nama" 
                             required 
                             autofocus
                             class="w-full pl-11 pr-11 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-4 focus:ring-indigo-500/15 focus:border-indigo-500 focus:bg-white transition-all duration-200"
