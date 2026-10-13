@@ -7,7 +7,7 @@ use App\Models\CabangGedung;
 use App\Models\Pengguna;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\DB; // <-- INI YANG SEBELUMNYA TERLEWAT
+use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 
 class AbsensiController extends Controller
@@ -27,7 +27,7 @@ class AbsensiController extends Controller
     }
 
     /**
-     * SIMPAN PENGATURAN JAM ABSENSI
+     * SIMPAN PENGATURAN JAM ABSENSI (UPDATE: HARI AKTIF)
      */
     public function updateJam(Request $request)
     {
@@ -37,6 +37,9 @@ class AbsensiController extends Controller
             'jam_selesai_istirahat' => 'required',
             'jam_pulang'            => 'required',
             'toleransi'             => 'required|integer|min:0|max:180',
+            'hari_aktif'            => 'required|array|min:1', // Wajib pilih minimal 1 hari
+        ], [
+            'hari_aktif.required'   => 'Silakan centang minimal satu hari aktif absensi.',
         ]);
 
         $formatTime = function ($t) {
@@ -44,16 +47,37 @@ class AbsensiController extends Controller
         };
 
         $data = [
-            '1'         => $formatTime($request->jam_masuk),
-            '2'         => $formatTime($request->jam_mulai_istirahat),
-            '3'         => $formatTime($request->jam_selesai_istirahat),
-            '4'         => $formatTime($request->jam_pulang),
-            'toleransi' => (int) $request->toleransi,
+            '1'          => $formatTime($request->jam_masuk),
+            '2'          => $formatTime($request->jam_mulai_istirahat),
+            '3'          => $formatTime($request->jam_selesai_istirahat),
+            '4'          => $formatTime($request->jam_pulang),
+            'toleransi'  => (int) $request->toleransi,
+            'hari_aktif' => $request->hari_aktif, // Menyimpan array ["Senin","Selasa",dst]
         ];
 
         Storage::disk('local')->put('jam_absensi.json', json_encode($data, JSON_PRETTY_PRINT));
 
-        return back()->with('success', 'Pengaturan jam absensi berhasil diperbarui!');
+        return back()->with('success', 'Pengaturan waktu dan hari absensi berhasil diperbarui!');
+    }
+
+    /**
+     * FUNGSI BANTUAN CEK HARI LIBUR
+     */
+    private function isHariLibur(): bool
+    {
+        $jamConfig = $this->getJamConfig();
+        $hariAktif = $jamConfig['hari_aktif'] ?? ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat']; // Default
+        
+        // Translasi nama hari Inggris (Carbon) ke Indonesia
+        $namaHariInggrisKeIndo = [
+            'Monday' => 'Senin', 'Tuesday' => 'Selasa', 'Wednesday' => 'Rabu',
+            'Thursday' => 'Kamis', 'Friday' => 'Jumat', 'Saturday' => 'Sabtu', 'Sunday' => 'Minggu'
+        ];
+        
+        $hariIni = $namaHariInggrisKeIndo[Carbon::now()->format('l')];
+
+        // Jika hari ini TIDAK ada di dalam array hari_aktif, berarti libur (Return True)
+        return !in_array($hariIni, $hariAktif);
     }
 
     /**
@@ -210,6 +234,14 @@ class AbsensiController extends Controller
      */
     public function storeFromMachine(Request $request)
     {
+        // BLOKIR JIKA HARI INI TIDAK DICENTANG DI PENGATURAN (LIBUR)
+        if ($this->isHariLibur()) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Sekolah Libur. Mesin Absensi dinonaktifkan hari ini.'
+            ], 403);
+        }
+
         $tag = trim($request->query('tag', $request->input('tag', '')));
         $idmesin = $request->query('idmesin', $request->input('idmesin'));
         $kategori = $request->query('kategori', $request->input('kategori'));
@@ -237,7 +269,6 @@ class AbsensiController extends Controller
         $jamConfig = $this->getJamConfig();
         $jamTarget = $jamConfig[(string) $kategori] ?? null;
 
-        // Simpan absen_maks dalam UTC agar sepadan dengan kolom absen (UTC)
         $zona = DB::table('cabang_gedung')->where('id', $pengguna->cabang_gedung)->value('zona_waktu') ?? '1';
         $seconds = $zona == '1' ? 25200 : ($zona == '2' ? 28800 : 32400);
         $nowLokal = $now->copy()->addSeconds($seconds);
@@ -263,8 +294,16 @@ class AbsensiController extends Controller
         ]);
     }
 
+    /**
+     * SIMPAN ABSENSI MANUAL SISWA (WEB)
+     */
     public function storeSiswa(Request $request)
     {
+        // BLOKIR JIKA HARI INI TIDAK DICENTANG DI PENGATURAN (LIBUR)
+        if ($this->isHariLibur()) {
+            return back()->with('error', 'Hari ini diatur sebagai hari Libur. Anda tidak dapat melakukan presensi.');
+        }
+
         $user = \Illuminate\Support\Facades\Auth::user();
         $kategori = $request->input('kategori');
 
