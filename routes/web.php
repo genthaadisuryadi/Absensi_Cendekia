@@ -96,6 +96,8 @@ Route::middleware(['auth', 'hakAkses:superadmin,admin'])->group(function () {
         Route::delete('/{id}', [PenggunaController::class, 'destroy'])->name('destroy');
     });
 
+    Route::get('pengguna/cek-tag', [App\Http\Controllers\PenggunaController::class, 'cekTag'])->name('pengguna.cek_tag');
+
     // Kelola Mesin
     Route::prefix('mesin')->name('mesin.')->group(function () {
         Route::get('/', [MesinController::class, 'index'])->name('index');

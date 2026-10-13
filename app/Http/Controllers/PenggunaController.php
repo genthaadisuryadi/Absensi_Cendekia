@@ -249,4 +249,30 @@ class PenggunaController extends Controller
             ->route('pengguna.index')
             ->with('successDelete', true);
     }
+
+    // ============================================
+    // CEK KARTU RFID (VIA AJAX)
+    // ============================================
+    public function cekTag(Request $request)
+    {
+        $tag = $request->query('tag');
+        
+        if (!$tag) {
+            return response()->json(['success' => false, 'message' => 'Tag RFID kosong']);
+        }
+
+        // Cari pengguna berdasarkan tag
+        $pengguna = Pengguna::where('tag', $tag)->first();
+
+        if ($pengguna) {
+            return response()->json([
+                'success'     => true,
+                'nama'        => $pengguna->nama,
+                'kelas'       => $pengguna->kelas ?? 'Tidak ada kelas',
+                'nomor_induk' => $pengguna->nomor_induk
+            ]);
+        } else {
+            return response()->json(['success' => false, 'message' => 'Kartu RFID ini belum terdaftar.']);
+        }
+    }
 }

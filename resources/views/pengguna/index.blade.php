@@ -39,11 +39,11 @@
                     <i class="bi bi-file-earmark-excel"></i> Import Siswa
                 </button>
                 
-                <!-- Tombol Cek Pengguna (Mesin RFID) -->
-                <a href="{{ url('pengguna/scan') }}" target="_blank"
-                    class="inline-flex items-center gap-2 px-4 py-2 border border-blue-600 text-blue-600 text-sm font-medium rounded-lg hover:bg-blue-50 transition">
+                <!-- Tombol Cek Pengguna (Mesin RFID Modal) -->
+                <button type="button" id="btnCekKartu"
+                    class="inline-flex items-center gap-2 px-4 py-2 border border-blue-600 text-blue-600 text-sm font-medium rounded-lg hover:bg-blue-50 transition shadow-sm">
                     <i class="bi bi-upc-scan"></i> Cek Kartu
-                </a>
+                </button>
 
                 <!-- Tombol Tambah Manual -->
                 <a href="{{ route('pengguna.create') }}" 
@@ -69,7 +69,7 @@
                 </thead>
 
                 <tbody class="divide-y divide-gray-100">
-                    @foreach ($pengguna as $data)
+                    @foreach ($pengguna as$data)
                         @continue($data->nomor_induk == 0)
 
                         <tr class="hover:bg-indigo-50/30 transition">
@@ -120,10 +120,8 @@
 
     {{-- ================= MODAL IMPORT EXCEL ================= --}}
     <div id="modalImport" class="fixed inset-0 z-[100] hidden">
-        <!-- Backdrop -->
         <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" onclick="document.getElementById('modalImport').classList.add('hidden')"></div>
         
-        <!-- Modal Dialog -->
         <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden p-6 transform transition-all">
             <div class="flex items-center justify-between mb-4 border-b border-slate-100 pb-3">
                 <h3 class="text-lg font-bold text-slate-800"><i class="bi bi-cloud-arrow-up-fill text-indigo-500 mr-2"></i> Import Data Siswa</h3>
@@ -157,6 +155,34 @@
         </div>
     </div>
 
+    {{-- ================= MODAL CEK KARTU RFID ================= --}}
+    <div id="modalCekKartu" class="fixed inset-0 z-[100] hidden items-center justify-center bg-black/50 backdrop-blur-sm transition-opacity">
+        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden transform scale-100">
+            {{-- Header Modal --}}
+            <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                <h3 class="text-lg font-bold text-slate-800 m-0"><i class="bi bi-search text-blue-500 mr-2"></i> Cek Identitas Kartu</h3>
+                <button type="button" id="closeModalCek" class="text-slate-400 hover:text-red-500 transition text-xl">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+
+            {{-- Body Modal --}}
+            <div class="p-6 text-center">
+                <p class="text-sm text-slate-500 mb-4">Silakan <b>tap kartu RFID</b> ke mesin <i>scanner</i> Anda.</p>
+                
+                <div class="mb-5">
+                    <input type="text" id="inputScanKartu" placeholder="Menunggu scan kartu..." 
+                        class="w-full text-center font-mono text-xl py-3 px-4 border-2 border-blue-200 rounded-xl focus:border-blue-500 focus:ring-0 transition" autocomplete="off">
+                </div>
+
+                {{-- Area Hasil --}}
+                <div id="hasilScan" class="min-h-[100px] flex items-center justify-center">
+                    <span class="text-slate-400 italic">Hasil identitas akan muncul di sini...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
     {{-- ================= JS ================= --}}
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
@@ -166,8 +192,7 @@
     <script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.colVis.min.js"></script>
 
     <script>
-        $(function() {
-            $('#penggunaTable').DataTable({
+        $(function() {$('#penggunaTable').DataTable({
                 pageLength: 10,
                 responsive: true,
                 dom: 'Bfrtip',
@@ -186,6 +211,60 @@
                         previous: "Sebelumnya",
                         next: "Selanjutnya"
                     }
+                }
+            });
+
+            /* ===== LOGIKA MODAL CEK KARTU RFID ===== */
+            $('#btnCekKartu').on('click', function() {
+                $('#modalCekKartu').removeClass('hidden').addClass('flex');
+                $('#hasilScan').html('<span class="text-slate-400 italic">Hasil identitas akan muncul di sini...</span>');
+                // Auto focus ke input agar langsung siap menampung hasil scan scanner USB
+                setTimeout(() => { $('#inputScanKartu').val('').focus(); }, 100);
+            });
+
+            $('#closeModalCek').on('click', function() {
+                $('#modalCekKartu').addClass('hidden').removeClass('flex');
+                $('#inputScanKartu').val('');
+            });
+
+            // Deteksi input dari scanner (tekan Enter/Barcode scanner submit otomatis)
+            $('#inputScanKartu').on('keypress', function(e) {
+                if(e.which === 13) { 
+                    e.preventDefault();
+                    let tag = $(this).val();
+                    
+                    if(tag.trim() === '') return;
+
+                    $('#hasilScan').html('<span class="text-blue-500 font-bold"><i class="bi bi-arrow-repeat animate-spin inline-block"></i> Mengecek data...</span>');
+
+                    $.ajax({
+                        url: "{{ route('pengguna.cek_tag') }}",
+                        type: "GET",
+                        data: { tag: tag },
+                        success: function(res) {
+                            if(res.success) {
+                                $('#hasilScan').html(`
+                                    <div class="w-full bg-green-50 text-green-800 p-4 rounded-xl border border-green-200 text-left shadow-sm">
+                                        <p class="font-extrabold text-lg mb-1"><i class="bi bi-person-check-fill text-green-600"></i> ${res.nama}</p>
+                                        <p class="text-sm m-0 text-green-700">Kelas: <b>${res.kelas}</b></p>
+                                        <p class="text-sm m-0 text-green-700">Nomor Induk: <b>${res.nomor_induk}</b></p>
+                                    </div>
+                                `);
+                            } else {
+                                $('#hasilScan').html(`
+                                    <div class="w-full bg-red-50 text-red-800 p-4 rounded-xl border border-red-200 shadow-sm">
+                                        <p class="font-bold mb-0"><i class="bi bi-x-circle-fill"></i> ${res.message}</p>
+                                    </div>
+                                `);
+                            }
+                            // Kosongkan input agar langsung siap untuk scan kartu berikutnya tanpa harus di-klik
+                            $('#inputScanKartu').val('').focus();
+                        },
+                        error: function() {
+                            $('#hasilScan').html('<div class="text-red-500 font-bold">Terjadi kesalahan koneksi ke server.</div>');
+                            $('#inputScanKartu').val('').focus();
+                        }
+                    });
                 }
             });
         });
