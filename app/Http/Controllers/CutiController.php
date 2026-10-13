@@ -75,19 +75,15 @@ class CutiController extends Controller
      */
     public function store(Request $request)
     {
-        // Debug: Lihat data yang dikirim
-        // dd($request->all());
-
         $validator = Validator::make($request->all(), [
             'nomor_induk' => 'required',
-           'tanggal' => 'required|date|after_or_equal:today'
-
+            'tanggal'     => 'required|date|after_or_equal:today'
         ], [
-            'nomor_induk.required' => 'Nomor induk wajib diisi.',
-            'nomor_induk.exists' => 'Nomor induk tidak ditemukan dalam sistem.',
-            'tanggal.required' => 'Tanggal cuti wajib diisi.',
-            'tanggal.date' => 'Format tanggal tidak valid.',
-            'tanggal.after_or_equal' => 'Tanggal cuti tidak boleh kurang dari hari ini.'
+            'nomor_induk.required'     => 'Nomor induk wajib diisi.',
+            'nomor_induk.exists'       => 'Nomor induk tidak ditemukan dalam sistem.',
+            'tanggal.required'         => 'Tanggal cuti wajib diisi.',
+            'tanggal.date'             => 'Format tanggal tidak valid.',
+            'tanggal.after_or_equal'   => 'Tanggal cuti tidak boleh kurang dari hari ini.'
         ]);
 
         if ($validator->fails()) {
@@ -135,9 +131,6 @@ class CutiController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
             
-            // Debug: Lihat error
-            // dd($e->getMessage());
-            
             return redirect()->back()
                 ->with('error', 'Terjadi kesalahan sistem: ' . $e->getMessage())
                 ->withInput();
@@ -158,87 +151,87 @@ class CutiController extends Controller
     }
 
     /**
- * Update the specified resource in storage.
- */
-public function update(Request $request, string $id)
-{
-    $validator = Validator::make($request->all(), [
-        'nomor_induk' => 'required|exists:pengguna,nomor_induk',
-        'tanggal' => 'required|date'
-    ]);
+     * Update the specified resource in storage.
+     */
+    public function update(Request $request, string $id)
+    {
+        $validator = Validator::make($request->all(), [
+            'nomor_induk' => 'required|exists:pengguna,nomor_induk',
+            'tanggal'     => 'required|date'
+        ]);
 
-    if ($validator->fails()) {
-        return redirect()->back()
-            ->withErrors($validator)
-            ->withInput();
-    }
-
-    $cuti = Cuti::findOrFail($id);
-    $oldNomorInduk = $cuti->nomor_induk;
-    $oldTanggal = $cuti->tanggal;
-
-    // Cek duplikasi HANYA JIKA nomor_induk atau tanggal BERUBAH
-    if ($request->nomor_induk != $oldNomorInduk || $request->tanggal != $oldTanggal) {
-        $existingCuti = Cuti::where('nomor_induk', $request->nomor_induk)
-            ->where('tanggal', $request->tanggal)
-            ->where('id', '!=', $id)
-            ->first();
-
-        if ($existingCuti) {
+        if ($validator->fails()) {
             return redirect()->back()
-                ->with('error', 'Karyawan sudah memiliki cuti pada tanggal tersebut.')
+                ->withErrors($validator)
+                ->withInput();
+        }
+
+        $cuti = Cuti::findOrFail($id);
+        $oldNomorInduk = $cuti->nomor_induk;
+        $oldTanggal = $cuti->tanggal;
+
+        // Cek duplikasi HANYA JIKA nomor_induk atau tanggal BERUBAH
+        if ($request->nomor_induk != $oldNomorInduk || $request->tanggal != $oldTanggal) {
+            $existingCuti = Cuti::where('nomor_induk', $request->nomor_induk)
+                ->where('tanggal', $request->tanggal)
+                ->where('id', '!=', $id)
+                ->first();
+
+            if ($existingCuti) {
+                return redirect()->back()
+                    ->with('error', 'Karyawan sudah memiliki cuti pada tanggal tersebut.')
+                    ->withInput();
+            }
+        }
+
+        try {
+            DB::beginTransaction();
+            
+            $data = [
+                'nomor_induk' => $request->nomor_induk,
+                'tanggal'     => $request->tanggal
+            ];
+
+            // Cuti buatan admin (bukan pengajuan siswa): rentang ikut tanggal baru
+            if (empty($cuti->kategori) || $cuti->kategori === 'Cuti') {
+                $data['tanggal_mulai'] = $request->tanggal;
+                $data['tanggal_selesai'] = $request->tanggal;
+            }
+
+            $cuti->update($data);
+
+            // Ambil nama pengguna baru untuk pesan sukses
+            $namaPenggunaBaru = Pengguna::where('nomor_induk', $request->nomor_induk)
+                ->value('nama');
+            
+            $namaPenggunaLama = Pengguna::where('nomor_induk', $oldNomorInduk)
+                ->value('nama');
+
+            DB::commit();
+
+            $message = "Cuti ";
+            
+            if ($oldNomorInduk != $request->nomor_induk) {
+                $message .= "berhasil dipindahkan dari <b>$namaPenggunaLama</b> ke <b>$namaPenggunaBaru</b>";
+            } else {
+                $message .= "untuk <b>$namaPenggunaBaru</b> berhasil diubah";
+            }
+            
+            if ($oldTanggal != $request->tanggal) {
+                $message .= " (tanggal diubah)";
+            }
+
+            return redirect()->route('cuti.index')
+                ->with('success', $message . ".");
+                
+        } catch (\Exception $e) {
+            DB::rollBack();
+            
+            return redirect()->back()
+                ->with('error', 'Terjadi kesalahan: ' . $e->getMessage())
                 ->withInput();
         }
     }
-
-    try {
-        DB::beginTransaction();
-        
-        $data = [
-            'nomor_induk' => $request->nomor_induk,
-            'tanggal' => $request->tanggal
-        ];
-
-        // Cuti buatan admin (bukan pengajuan siswa): rentang ikut tanggal baru
-        if (empty($cuti->kategori) || $cuti->kategori === 'Cuti') {
-            $data['tanggal_mulai'] = $request->tanggal;
-            $data['tanggal_selesai'] = $request->tanggal;
-        }
-
-        $cuti->update($data);
-
-        // Ambil nama pengguna baru untuk pesan sukses
-        $namaPenggunaBaru = Pengguna::where('nomor_induk', $request->nomor_induk)
-            ->value('nama');
-        
-        $namaPenggunaLama = Pengguna::where('nomor_induk', $oldNomorInduk)
-            ->value('nama');
-
-        DB::commit();
-
-        $message = "Cuti ";
-        
-        if ($oldNomorInduk != $request->nomor_induk) {
-            $message .= "berhasil dipindahkan dari <b>$namaPenggunaLama</b> ke <b>$namaPenggunaBaru</b>";
-        } else {
-            $message .= "untuk <b>$namaPenggunaBaru</b> berhasil diubah";
-        }
-        
-        if ($oldTanggal != $request->tanggal) {
-            $message .= " (tanggal diubah)";
-        }
-
-        return redirect()->route('cuti.index')
-            ->with('success', $message . ".");
-            
-    } catch (\Exception $e) {
-        DB::rollBack();
-        
-        return redirect()->back()
-            ->with('error', 'Terjadi kesalahan: ' . $e->getMessage())
-            ->withInput();
-    }
-}
 
     /**
      * Remove the specified resource from storage.
@@ -264,7 +257,7 @@ public function update(Request $request, string $id)
     {
         $request->validate([
             'nomor_induk' => 'required|string',
-            'tanggal' => 'required|date'
+            'tanggal'     => 'required|date'
         ]);
 
         $cuti = in_array(
@@ -283,16 +276,15 @@ public function update(Request $request, string $id)
     // PERSETUJUAN PENGAJUAN SISWA (ADMIN)
     // ============================================
 
-    /**
-     * Pastikan yang memproses adalah admin (nusabot / full).
-     * Dicek di sini juga supaya aksi persetujuan tidak bergantung pada middleware saja.
-     */
     private function pastikanAdmin()
     {
         $user = auth()->user();
+        
+        // Cek langsung dari relasi hak akses atau hak akses teks di database
         $hak = $user?->jabatanStatus?->hakAkses?->hak;
 
-        abort_unless($user && in_array($hak, ['nusabot', 'full'], true), 403, 'Hanya admin yang dapat memproses pengajuan.');
+        // Diperbarui agar mendeteksi superadmin dan admin
+        abort_unless($user && in_array(strtolower($hak), ['superadmin', 'admin', 'nusabot', 'full'], true), 403, 'Hanya admin yang dapat memproses pengajuan.');
 
         return $user;
     }
@@ -369,19 +361,19 @@ public function update(Request $request, string $id)
     public function izinSiswaStore(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'tanggal_mulai' => 'required|date|after_or_equal:today',
+            'tanggal_mulai'   => 'required|date|after_or_equal:today',
             'tanggal_selesai' => 'required|date|after_or_equal:tanggal_mulai',
-            'kategori' => 'required|in:Izin,Sakit',
-            'alasan' => 'required|string|max:1000',
-            'bukti_file' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:2048'
+            'kategori'        => 'required|in:Izin,Sakit',
+            'alasan'          => 'required|string|max:1000',
+            'bukti_file'      => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:2048'
         ], [
-            'tanggal_mulai.required' => 'Tanggal mulai wajib diisi.',
-            'tanggal_mulai.after_or_equal' => 'Tanggal mulai tidak boleh sebelum hari ini.',
+            'tanggal_mulai.required'         => 'Tanggal mulai wajib diisi.',
+            'tanggal_mulai.after_or_equal'   => 'Tanggal mulai tidak boleh sebelum hari ini.',
             'tanggal_selesai.after_or_equal' => 'Tanggal selesai tidak boleh sebelum tanggal mulai.',
-            'kategori.required' => 'Kategori wajib dipilih.',
-            'alasan.required' => 'Alasan/Keterangan wajib diisi.',
-            'bukti_file.mimes' => 'Format file tidak didukung. Gunakan PDF, JPG, atau PNG.',
-            'bukti_file.max' => 'Ukuran file maksimal 2MB.'
+            'kategori.required'              => 'Kategori wajib dipilih.',
+            'alasan.required'                => 'Alasan/Keterangan wajib diisi.',
+            'bukti_file.mimes'               => 'Format file tidak didukung. Gunakan PDF, JPG, atau PNG.',
+            'bukti_file.max'                 => 'Ukuran file maksimal 2MB.'
         ]);
 
         if ($validator->fails()) {
@@ -413,13 +405,13 @@ public function update(Request $request, string $id)
 
         // Simpan permohonan
         Cuti::create([
-            'nomor_induk' => $user->nomor_induk,
-            'tanggal' => $request->tanggal_mulai, // default legacy column
-            'tanggal_mulai' => $request->tanggal_mulai,
-            'tanggal_selesai' => $request->tanggal_selesai,
-            'kategori' => $request->kategori,
-            'alasan' => $request->alasan,
-            'bukti_file' => $path,
+            'nomor_induk'        => $user->nomor_induk,
+            'tanggal'            => $request->tanggal_mulai, // default legacy column
+            'tanggal_mulai'      => $request->tanggal_mulai,
+            'tanggal_selesai'    => $request->tanggal_selesai,
+            'kategori'           => $request->kategori,
+            'alasan'             => $request->alasan,
+            'bukti_file'         => $path,
             'status_persetujuan' => Cuti::PENDING
         ]);
 
