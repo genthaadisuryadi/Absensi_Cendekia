@@ -13,10 +13,11 @@ use App\Http\Controllers\AbsensiController;
 use App\Http\Controllers\AbsensiPenggunaController;
 use App\Http\Controllers\DendaController;
 use App\Http\Controllers\ScanController;
+use App\Http\Controllers\RekapSiswaController;
 
 /*
 |--------------------------------------------------------------------------
-| Public / Machine Routes
+| Public / Machine Routes (ESP8266 RFID)
 |--------------------------------------------------------------------------
 */
 Route::match(['get', 'post'], '/pengguna/scan', [ScanController::class, 'index'])->name('pengguna.scan');
@@ -27,7 +28,7 @@ Route::match(['get', 'post'], '/absensi-machine', [AbsensiController::class, 'st
 | Authenticated User Routes (Semua Role)
 |--------------------------------------------------------------------------
 */
-Route::middleware(['auth', 'hakAkses:orang tua,full,general,nusabot'])->group(function () {
+Route::middleware(['auth', 'hakAkses:superadmin,admin,general,orang_tua'])->group(function () {
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard.index');
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
@@ -36,13 +37,13 @@ Route::middleware(['auth', 'hakAkses:orang tua,full,general,nusabot'])->group(fu
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
-    // Libur Khusus (Bisa diakses semua role untuk melihat jadwal libur)
+    // Libur Khusus (Bisa dilihat semua role)
     Route::get('/libur_khusus', [LiburKhususController::class, 'index'])->name('libur_khusus.index');
 });
 
 /*
 |--------------------------------------------------------------------------
-| Orang Tua Routes (Role Orang Tua)
+| Orang Tua Routes (Role: Orang Tua)
 |--------------------------------------------------------------------------
 */
 Route::middleware(['auth', 'hakAkses:orang_tua'])->group(function () {
@@ -51,29 +52,29 @@ Route::middleware(['auth', 'hakAkses:orang_tua'])->group(function () {
 
 /*
 |--------------------------------------------------------------------------
-| General User Routes (Role General)
+| Siswa / General User Routes (Role: General / Siswa)
 |--------------------------------------------------------------------------
 */
-Route::middleware(['auth', 'verified'])->group(function () {
+Route::middleware(['auth', 'hakAkses:general,superadmin,admin'])->group(function () {
     Route::get('/absensi/pengguna', [AbsensiPenggunaController::class, 'rekapSaya'])->name('absensi.pengguna.saya');
-    
+
     // Fitur web presensi & izin siswa
     Route::post('/presensi/siswa', [AbsensiController::class, 'storeSiswa'])->name('presensi-siswa.store');
-    
+
     Route::get('/izin/siswa', [CutiController::class, 'izinSiswaIndex'])->name('siswa.izin.index');
     Route::get('/izin/siswa/create', [CutiController::class, 'izinSiswaCreate'])->name('siswa.izin.create');
     Route::post('/izin/siswa/store', [CutiController::class, 'izinSiswaStore'])->name('siswa.izin.store');
-    
-    Route::get('/absensi/rekap/pdf', [App\Http\Controllers\RekapSiswaController::class, 'exportPdf'])->name('siswa.rekap.pdf');
-    Route::get('/absensi/rekap/excel', [App\Http\Controllers\RekapSiswaController::class, 'exportExcel'])->name('siswa.rekap.excel');
+
+    Route::get('/absensi/rekap/pdf', [RekapSiswaController::class, 'exportPdf'])->name('siswa.rekap.pdf');
+    Route::get('/absensi/rekap/excel', [RekapSiswaController::class, 'exportExcel'])->name('siswa.rekap.excel');
 });
 
 /*
 |--------------------------------------------------------------------------
-| Admin Routes (Role: Orang Tua & Full)
+| Admin & SuperAdmin Routes (Role: SuperAdmin & Admin)
 |--------------------------------------------------------------------------
 */
-Route::middleware('hakAkses:orang tua,full')->group(function () {
+Route::middleware(['auth', 'hakAkses:superadmin,admin'])->group(function () {
 
     // Absensi Admin
     Route::prefix('absensi')->name('absensi.')->group(function () {
@@ -103,7 +104,7 @@ Route::middleware('hakAkses:orang tua,full')->group(function () {
         Route::put('/{id}', [MesinController::class, 'update'])->name('update');
     });
 
-    // Kelola Cuti
+    // Kelola Cuti & Persetujuan Izin Siswa
     Route::prefix('cuti')->name('cuti.')->group(function () {
         Route::get('/', [CutiController::class, 'index'])->name('index');
         Route::get('/create', [CutiController::class, 'create'])->name('create');
@@ -112,7 +113,6 @@ Route::middleware('hakAkses:orang tua,full')->group(function () {
         Route::put('/{id}', [CutiController::class, 'update'])->name('update');
         Route::delete('/{id}', [CutiController::class, 'destroy'])->name('destroy');
 
-        // Persetujuan pengajuan izin/sakit dari siswa
         Route::post('/{id}/setujui', [CutiController::class, 'setujui'])->name('setujui');
         Route::post('/{id}/tolak', [CutiController::class, 'tolak'])->name('tolak');
     });
@@ -127,7 +127,7 @@ Route::middleware('hakAkses:orang tua,full')->group(function () {
         Route::delete('/{id}', [CabangGedungController::class, 'destroy'])->name('destroy');
     });
 
-    // Libur Khusus
+    // Libur Khusus (Create, Edit, Update, Delete khusus Admin)
     Route::prefix('libur_khusus')->name('libur_khusus.')->group(function () {
         Route::post('/', [LiburKhususController::class, 'store'])->name('store');
         Route::get('/{id}/edit', [LiburKhususController::class, 'edit'])->name('edit');
@@ -154,43 +154,6 @@ Route::middleware('hakAkses:orang tua,full')->group(function () {
         Route::put('/{id}', [DendaController::class, 'update'])->name('update');
         Route::delete('/{id}', [DendaController::class, 'destroy'])->name('destroy');
     });
-
 });
-
-/*
-|--------------------------------------------------------------------------
-| Debug Route
-|--------------------------------------------------------------------------
-*/
-Route::get('/debug-akses', function () {
-    $user = auth()->user();
-
-    if (!$user) {
-        return response()->json(['error' => 'User tidak login'], 401);
-    }
-
-    $jabatanStatus = $user->jabatanStatus;
-    $hakAkses = $jabatanStatus?->hakAkses;
-
-    return response()->json([
-        'user' => [
-            'nomor_induk' => $user->nomor_induk,
-            'nama' => $user->nama,
-            'jabatan_status_id' => $user->jabatan_status,
-        ],
-        'jabatan_status' => [
-            'id' => $jabatanStatus?->id,
-            'jabatan_status' => $jabatanStatus?->jabatan_status,
-            'hak_akses_id' => $jabatanStatus?->hak_akses,
-            'aktif' => $jabatanStatus?->aktif,
-        ],
-        'hak_akses' => [
-            'id' => $hakAkses?->id,
-            'hak' => $hakAkses?->hak,
-        ],
-        'all_hak_akses_table' => \Illuminate\Support\Facades\DB::table('hak_akses')->get(),
-        'all_jabatan_status_table' => \Illuminate\Support\Facades\DB::table('jabatan_status')->get(['id', 'jabatan_status', 'hak_akses', 'aktif']),
-    ], 200, [], JSON_PRETTY_PRINT);
-})->middleware('auth');
 
 require __DIR__.'/auth.php';

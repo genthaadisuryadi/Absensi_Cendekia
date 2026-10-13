@@ -9,33 +9,31 @@ class JabatanStatusSeeder extends Seeder
 {
     public function run(): void
     {
-        // Hapus data lama tanpa truncate (agar aman dengan foreign key)
         DB::table('jabatan_status')->delete();
 
-        // Data jabatan status
         $jabatanStatuses = [
             [
                 'id' => 1,
-                'jabatan_status' => 'Nusabot',
-                'hak_akses' => 1, // id hak_akses "nusabot"
+                'jabatan_status' => 'SuperAdmin',
+                'hak_akses' => 1, // superadmin
                 'aktif' => 1,
             ],
             [
                 'id' => 2,
-                'jabatan_status' => 'Full',
-                'hak_akses' => 2, // id hak_akses "full"
+                'jabatan_status' => 'Admin',
+                'hak_akses' => 2, // admin
                 'aktif' => 1,
             ],
             [
                 'id' => 3,
-                'jabatan_status' => 'General',
-                'hak_akses' => 3, // id hak_akses "general"
+                'jabatan_status' => 'Siswa',
+                'hak_akses' => 3, // general (siswa)
                 'aktif' => 1,
             ],
             [
                 'id' => 4,
                 'jabatan_status' => 'Orang Tua',
-                'hak_akses' => 4, // id hak_akses "orang_tua"
+                'hak_akses' => 4, // orang_tua
                 'aktif' => 1,
             ],
         ];

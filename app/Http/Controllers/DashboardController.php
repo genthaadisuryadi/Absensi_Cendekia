@@ -17,22 +17,27 @@ class DashboardController extends Controller
         $month = $request->get('month', Carbon::now()->month);
         $year  = $request->get('year', Carbon::now()->year);
 
-        // ambil hak akses dari tabel jabatan_status
-        $hakAkses = DB::table('jabatan_status')
+        // Ambil ID hak_akses dari tabel jabatan_status
+        $hakAkses = (int) DB::table('jabatan_status')
             ->where('id', $user->jabatan_status)
             ->value('hak_akses');
 
         /**
          * ===============================
-         * ADMIN / PIMPINAN
+         * 1. ORANG TUA (hak_akses = 4)
          * ===============================
          */
-        // hak_akses 2 adalah 'Full' (Admin), sementara hak_akses 1 adalah 'Nusabot' (Siswa/User)
-        // Kita sesuaikan logikanya di sini agar Admin memuat view dashboard.index
-        if (in_array($hakAkses, [2]) || str_contains(strtolower($user->tag), 'admin')) {
+        if ($hakAkses === 4) {
+            return redirect()->route('dashboard.ortu');
+        }
 
+        /**
+         * ===============================
+         * 2. SUPERADMIN (1) & ADMIN (2)
+         * ===============================
+         */
+        if (in_array($hakAkses, [1, 2], true)) {
             $cabangGedungId = $request->get('cabangGedung');
-
             $cabangGedungList = DB::table('cabang_gedung')->get();
 
             $lokasiCabang = $cabangGedungId
@@ -45,230 +50,83 @@ class DashboardController extends Controller
                 $month,
                 $year,
                 $cabangGedungId,
-                null // ❗ tidak filter user
+                null
             );
 
             return view('dashboard.index', [
                 'cabangGedungList' => $cabangGedungList,
-                'labels'          => $stats['labels'],
-                'tepatWaktu'      => $stats['tepat'],
-                'terlambat'       => $stats['telat'],
-                'lokasiCabang'    => $lokasiCabang,
-                'cabangGedungId'  => $cabangGedungId ?? null,
-                // Passing nilai 1 agar Filter Cabang di view dashboard.index tetap muncul
-                // (karena di view ada pengecekan if (in_array($hakAkses, [0, 1])))
-                'hakAkses'        => 1
+                'labels'           => $stats['labels'],
+                'tepatWaktu'       => $stats['tepat'],
+                'terlambat'        => $stats['telat'],
+                'lokasiCabang'     => $lokasiCabang,
+                'cabangGedungId'   => $cabangGedungId ?? null,
+                'hakAkses'         => 1, // Menampilkan filter cabang di view
             ]);
         }
+
         /**
          * ===============================
-         * USER BIASA / SISWA
+         * 3. SISWA / GENERAL (hak_akses = 3)
          * ===============================
          */
-        else {
-            // Logika Dashboard Siswa
-            $nomorInduk = $user->nomor_induk;
+        $nomorInduk = $user->nomor_induk;
 
-            // 2. $totalHariMasuk: count presensi bulan ini dengan status 'hadir' (kategori 1 = masuk)
-            $totalHariMasuk = Absensi::where('nomor_induk', $nomorInduk)
-                ->whereMonth('absen', $month)
-                ->whereYear('absen', $year)
-                ->where('kategori', 1)
-                ->count();
-
-            // 3. $totalHariEfektif: total hari berjalan di bulan ini
-            $totalHariEfektif = Carbon::now()->day;
-
-            // 4. $persentaseKehadiran: persentase tepat waktu
-            $persentaseKehadiran = ($totalHariMasuk / max($totalHariEfektif, 1)) * 100;
-
-            // 5. $riwayatTerbaru: ambil 5 data terakhir dari tabel presensi khusus user login
-            $riwayatTerbaru = Absensi::where('nomor_induk', $nomorInduk)
-                ->orderBy('absen', 'desc')
-                ->take(5)
-                ->get();
-
-            // Process $riwayatTerbaru to get status
-            foreach ($riwayatTerbaru as $riwayat) {
-                if (empty($riwayat->absen)) continue;
-                
-                $waktuAbsen = Carbon::parse($riwayat->absen);
-                
-                $kategoriLabel = '-';
-                if ($riwayat->kategori == 1) $kategoriLabel = 'Presensi Masuk';
-                elseif ($riwayat->kategori == 2) $kategoriLabel = 'Mulai Istirahat';
-                elseif ($riwayat->kategori == 3) $kategoriLabel = 'Selesai Istirahat';
-                elseif ($riwayat->kategori == 4) $kategoriLabel = 'Presensi Pulang';
-                
-                $riwayat->kategori_label = $kategoriLabel;
-                
-                // default jam
-                $defaultJam = [
-                    '1' => '08:00:00',
-                    '2' => '12:00:00',
-                    '3' => '13:00:00',
-                    '4' => '17:00:00',
-                ];
-                
-                $jamTarget = $defaultJam[$riwayat->kategori] ?? null;
-                $riwayat->status_label = 'Tepat Waktu';
-                
-                if ($jamTarget) {
-                    $target = Carbon::parse($waktuAbsen->toDateString() . ' ' . $jamTarget);
-                    
-                    if ($riwayat->kategori == 1) { // Masuk
-                        if ($waktuAbsen->greaterThan($target->copy()->addMinutes(15))) {
-                            $selisih = $waktuAbsen->diffInMinutes($target);
-                            $riwayat->status_label = "Terlambat $selisih Menit";
-                        }
-                    } elseif ($riwayat->kategori == 4) { // Pulang
-                        if ($waktuAbsen->lessThan($target)) {
-                            $riwayat->status_label = "Pulang Cepat";
-                        }
-                    }
-                }
-                
-                // Check if it's Izin / Sakit logic? Cuti table handles Izin/Sakit. 
-                // But if they just mean based on kategori string, we handle it if needed.
-            }
-
-            if ($hakAkses == 4) { // Orang Tua
-                return view('dashboard.orangtua', [
-                    'totalHariMasuk' => $totalHariMasuk,
-                    'totalHariEfektif' => $totalHariEfektif,
-                    'persentaseKehadiran' => $persentaseKehadiran,
-                    'riwayatTerbaru' => $riwayatTerbaru,
-                    'hakAkses' => $hakAkses
-                ]);
-            }
-
-            return view('dashboard.siswa', [
-                'totalHariMasuk' => $totalHariMasuk,
-                'totalHariEfektif' => $totalHariEfektif,
-                'persentaseKehadiran' => $persentaseKehadiran,
-                'riwayatTerbaru' => $riwayatTerbaru,
-                'hakAkses' => $hakAkses
-            ]);
-        }
-    }
-
-    /**
-     * =====================================
-     * GRAFIK ABSEN MASUK BULANAN
-     * kategori = 1
-     * =====================================
-     */
-    private function getMonthlyStats(
-        $month,
-        $year,
-        $cabangGedungId = null,
-        $userNomorInduk = null
-    ) {
-        $daysInMonth = Carbon::create($year, $month)->daysInMonth;
-
-        $labels    = range(1, $daysInMonth);
-        $dataTepat = array_fill(0, $daysInMonth, 0);
-        $dataTelat = array_fill(0, $daysInMonth, 0);
-
-        $query = Absensi::query()
-            ->where('kategori', 1)
+        $totalHariMasuk = Absensi::where('nomor_induk', $nomorInduk)
             ->whereMonth('absen', $month)
             ->whereYear('absen', $year)
-            ->whereNotNull('absen');
+            ->where('kategori', 1)
+            ->count();
 
-        // ✅ FILTER USER LOGIN (PALING PENTING)
-        if ($userNomorInduk) {
-            $query->where('nomor_induk', $userNomorInduk);
-        }
+        $totalHariEfektif = max(Carbon::now()->day, 1);
+        $persentaseKehadiran = ($totalHariMasuk / $totalHariEfektif) * 100;
 
-        // ✅ FILTER CABANG (ADMIN)
-        if ($cabangGedungId) {
-            $query->whereHas('pengguna', function ($q) use ($cabangGedungId) {
-                $q->where('cabang_gedung', $cabangGedungId);
-            });
-        }
+        $riwayatTerbaru = Absensi::where('nomor_induk', $nomorInduk)
+            ->orderBy('absen', 'desc')
+            ->take(5)
+            ->get();
 
-        foreach ($query->get() as $row) {
-
-            $waktuAbsen = Carbon::parse($row->absen);
-            $hariIndex  = (int)$waktuAbsen->format('d') - 1;
-
-            $jamMasuk = Carbon::parse(
-                $waktuAbsen->toDateString() . ' 08:00:00'
-            );
-
-            if ($waktuAbsen->lte($jamMasuk)) {
-                $dataTepat[$hariIndex]++;
-            } else {
-                $dataTelat[$hariIndex]++;
-            }
-        }
-
-        return [
-            'labels' => $labels,
-            'tepat'  => $dataTepat,
-            'telat'  => $dataTelat,
+        $defaultJam = [
+            '1' => '08:00:00',
+            '2' => '12:00:00',
+            '3' => '13:00:00',
+            '4' => '17:00:00',
         ];
-    }
 
-    /**
-     * =====================================
-     * DASHBOARD KHUSUS ORANG TUA
-     * =====================================
-     */
-    public function ortu(Request $request)
-    {
-        $user = Auth::user();
-        
-        // Ambil data anak beserta absensi mereka untuk hari ini
-        $anakAnak = $user->anak()->get();
-        $today = Carbon::today();
-
-        // Siapkan data riwayat (gabungan semua anak)
-        $riwayatAbsensi = collect();
-
-        foreach ($anakAnak as $anak) {
-            // Ambil absensi masuk (kategori 1) hari ini
-            $absenHariIni = DB::table('absensi')
-                ->where('nomor_induk', $anak->nomor_induk)
-                ->where('kategori', 1)
-                ->whereDate('absen', $today)
-                ->first();
-
-            $anak->absen_hari_ini = $absenHariIni;
-
-            if ($absenHariIni && $absenHariIni->absen) {
-                // Tentukan status (Tepat/Telat)
-                $waktuAbsen = Carbon::parse($absenHariIni->absen);
-                $jamMasuk = Carbon::parse($today->toDateString() . ' 08:00:00');
-                $anak->jam_masuk = $waktuAbsen->format('H:i');
-                $anak->status_absen = $waktuAbsen->lte($jamMasuk) ? 'Tepat Waktu' : 'Terlambat';
-            } else {
-                $anak->jam_masuk = '-';
-                $anak->status_absen = 'Belum Absen';
+        foreach ($riwayatTerbaru as $riwayat) {
+            if (empty($riwayat->absen)) {
+                continue;
             }
 
-            // Ambil riwayat absensi 5 terakhir untuk anak ini
-            $riwayat = DB::table('absensi')
-                ->where('nomor_induk', $anak->nomor_induk)
-                ->orderBy('absen', 'desc')
-                ->limit(5)
-                ->get()
-                ->map(function ($item) use ($anak) {
-                    $item->nama_anak = $anak->nama;
-                    return $item;
-                });
-            
-            $riwayatAbsensi = $riwayatAbsensi->concat($riwayat);
+            $waktuAbsen = Carbon::parse($riwayat->absen);
+
+            $kategoriMap = [
+                1 => 'Presensi Masuk',
+                2 => 'Mulai Istirahat',
+                3 => 'Selesai Istirahat',
+                4 => 'Presensi Pulang',
+            ];
+            $riwayat->kategori_label = $kategoriMap[$riwayat->kategori] ?? '-';
+
+            $jamTarget = $defaultJam[$riwayat->kategori] ?? null;
+            $riwayat->status_label = 'Tepat Waktu';
+
+            if ($jamTarget) {
+                $target = Carbon::parse($waktuAbsen->toDateString() . ' ' . $jamTarget);
+
+                if ((int) $riwayat->kategori === 1 && $waktuAbsen->greaterThan($target->copy()->addMinutes(15))) {
+                    $selisih = $waktuAbsen->diffInMinutes($target);
+                    $riwayat->status_label = "Terlambat {$selisih} Menit";
+                } elseif ((int) $riwayat->kategori === 4 && $waktuAbsen->lessThan($target)) {
+                    $riwayat->status_label = 'Pulang Cepat';
+                }
+            }
         }
 
-        // Urutkan riwayat absensi gabungan dari yang terbaru
-        $riwayatAbsensi = $riwayatAbsensi->sortByDesc('absen')->take(10);
-
-        return view('dashboard.ortu', [
-            'user' => $user,
-            'anakAnak' => $anakAnak,
-            'riwayatAbsensi' => $riwayatAbsensi
+        return view('dashboard.siswa', [
+            'totalHariMasuk'      => $totalHariMasuk,
+            'totalHariEfektif'    => $totalHariEfektif,
+            'persentaseKehadiran' => $persentaseKehadiran,
+            'riwayatTerbaru'      => $riwayatTerbaru,
+            'hakAkses'            => $hakAkses,
         ]);
     }
-}

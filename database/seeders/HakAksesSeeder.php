@@ -12,8 +12,8 @@ class HakAksesSeeder extends Seeder
         DB::table('hak_akses')->delete();
 
         $hakAksesList = [
-            1 => 'nusabot',
-            2 => 'full',
+            1 => 'superadmin',
+            2 => 'admin',
             3 => 'general',
             4 => 'orang_tua',
         ];

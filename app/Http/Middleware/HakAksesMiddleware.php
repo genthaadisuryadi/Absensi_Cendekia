@@ -12,64 +12,47 @@ class HakAksesMiddleware
     {
         $user = $request->user();
 
-        // belum login
         if (!$user) {
-            return response()->view('errors.access_denied', [
-                'message' => 'Anda harus login terlebih dahulu',
-                'action' => 'login'
-            ], 403);
+            return redirect()->route('login');
         }
 
-        // Dapatkan hak akses dari jabatan status user
         $jabatanStatus = $user->jabatanStatus;
-        
-        if (!$jabatanStatus) {
+        if (!$jabatanStatus || !$jabatanStatus->hakAkses) {
             auth()->logout();
             $request->session()->invalidate();
             $request->session()->regenerateToken();
-            
+
             return response()->view('errors.access_denied', [
-                'message' => 'User tidak memiliki jabatan status yang terkait',
+                'message' => 'Akun Anda belum memiliki Jabatan atau Hak Akses yang valid.',
                 'action' => 'logout',
-                'debug' => [
-                    'user_id' => $user->nomor_induk,
-                    'jabatan_status_id' => $user->jabatan_status,
-                ]
-            ], 403);
-        }
-        
-        $hakAkses = $jabatanStatus->hakAkses;
-        
-        if (!$hakAkses) {
-            auth()->logout();
-            $request->session()->invalidate();
-            $request->session()->regenerateToken();
-            
-            return response()->view('errors.access_denied', [
-                'message' => 'Jabatan status tidak memiliki hak akses yang terkait',
-                'action' => 'logout',
-                'debug' => [
-                    'jabatan_status_id' => $jabatanStatus->id,
-                    'hak_akses_id' => $jabatanStatus->hak_akses,
-                ]
             ], 403);
         }
 
-        // Dapatkan nama hak akses dari relasi (kolom 'hak'), ganti underscore dengan spasi agar cocok dengan web.php
-        $userHakAkses = str_replace('_', ' ', strtolower($hakAkses->hak ?? ''));
+        // Normalisasi role user (ubah spasi menjadi underscore, huruf kecil)
+        $rawHak = strtolower(trim($jabatanStatus->hakAkses->hak ?? ''));
+        $normalizedUserRole = str_replace(' ', '_', $rawHak);
 
-        // Periksa apakah user punya salah satu role yang diizinkan
-        if (!in_array($userHakAkses, $roles)) {
-            auth()->logout();
-            $request->session()->invalidate();
-            $request->session()->regenerateToken();
-            
+        // Dukungan backward-compatibility jika di DB masih tertulis 'nusabot' atau 'full'
+        $roleAliasMap = [
+            'nusabot' => 'superadmin',
+            'full'    => 'admin',
+            'siswa'   => 'general',
+        ];
+        $effectiveUserRole = $roleAliasMap[$normalizedUserRole] ?? $normalizedUserRole;
+
+        // Normalisasi semua parameter role dari web.php
+        $normalizedAllowedRoles = array_map(function ($role) use ($roleAliasMap) {
+            $r = str_replace(' ', '_', strtolower(trim($role)));
+            return $roleAliasMap[$r] ?? $r;
+        }, $roles);
+
+        if (!in_array($effectiveUserRole, $normalizedAllowedRoles, true)) {
             return response()->view('errors.access_denied', [
-                'message' => "Akses ditolak. Anda memiliki role '{$userHakAkses}' tetapi membutuhkan: " . implode(', ', $roles),
-                'action' => 'logout',
+                'message' => "Akses ditolak. Role Anda ('{$jabatanStatus->jabatan_status}') tidak diizinkan mengakses halaman ini.",
+                'action' => 'back',
                 'debug' => [
-                    'user_role' => $userHakAkses,
-                    'required_roles' => $roles,
+                    'user_role' => $effectiveUserRole,
+                    'required_roles' => $normalizedAllowedRoles,
                 ]
             ], 403);
         }
