@@ -88,6 +88,9 @@ Route::middleware(['auth', 'hakAkses:superadmin,admin'])->group(function () {
     // Kelola Pengguna
     Route::prefix('pengguna')->name('pengguna.')->group(function () {
         Route::get('/', [PenggunaController::class, 'index'])->name('index');
+        Route::post('/import', [PenggunaController::class, 'import'])->name('import'); // <--- TAMBAHKAN INI
+        Route::get('/create', [PenggunaController::class, 'create'])->name('create');
+        Route::get('/', [PenggunaController::class, 'index'])->name('index');
         Route::get('/create', [PenggunaController::class, 'create'])->name('create');
         Route::post('/', [PenggunaController::class, 'store'])->name('store');
         Route::get('/{id}/edit', [PenggunaController::class, 'edit'])->name('edit');

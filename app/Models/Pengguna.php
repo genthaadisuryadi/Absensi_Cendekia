@@ -19,6 +19,7 @@ class Pengguna extends Authenticatable
     protected $fillable = [
         'nomor_induk',
         'nama',
+        'kelas',
         'tag',
         'jabatan_status',
         'cabang_gedung',

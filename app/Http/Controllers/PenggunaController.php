@@ -7,6 +7,8 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 use App\Models\Pengguna;
 use Illuminate\Support\Facades\DB;
+use App\Imports\PenggunaImport;
+use Maatwebsite\Excel\Facades\Excel;
 
 class PenggunaController extends Controller
 {
@@ -24,6 +26,28 @@ class PenggunaController extends Controller
             ->get();
 
         return view('pengguna.index', compact('pengguna'));
+    }
+
+    // ====== IMPORT EXCEL / CSV ======
+    public function import(Request $request)
+    {
+        $request->validate([
+            'file_excel' => 'required|mimes:xlsx,csv,xls',
+        ], [
+            'file_excel.required' => 'Silakan pilih file Excel terlebih dahulu.',
+            'file_excel.mimes'    => 'Format file harus berupa .xlsx atau .csv',
+        ]);
+
+        try {
+            Excel::import(new PenggunaImport, $request->file('file_excel'));
+            
+            return redirect()->route('pengguna.index')->with([
+                'successAdd' => 1,
+                'nama'       => 'Massal dari Excel'
+            ]);
+        } catch (\Exception $e) {
+            return redirect()->back()->withErrors(['file_excel' => 'Gagal mengimpor data: ' . $e->getMessage()]);
+        }
     }
 
     // ====== CREATE ======
