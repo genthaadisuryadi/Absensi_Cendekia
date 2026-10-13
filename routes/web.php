@@ -88,9 +88,7 @@ Route::middleware(['auth', 'hakAkses:superadmin,admin'])->group(function () {
     // Kelola Pengguna
     Route::prefix('pengguna')->name('pengguna.')->group(function () {
         Route::get('/', [PenggunaController::class, 'index'])->name('index');
-        Route::post('/import', [PenggunaController::class, 'import'])->name('import'); // <--- TAMBAHKAN INI
-        Route::get('/create', [PenggunaController::class, 'create'])->name('create');
-        Route::get('/', [PenggunaController::class, 'index'])->name('index');
+        Route::post('/import', [PenggunaController::class, 'import'])->name('import'); // Import Massal Excel
         Route::get('/create', [PenggunaController::class, 'create'])->name('create');
         Route::post('/', [PenggunaController::class, 'store'])->name('store');
         Route::get('/{id}/edit', [PenggunaController::class, 'edit'])->name('edit');
@@ -105,6 +103,7 @@ Route::middleware(['auth', 'hakAkses:superadmin,admin'])->group(function () {
         Route::post('/', [MesinController::class, 'store'])->name('store');
         Route::get('/{id}/edit', [MesinController::class, 'edit'])->name('edit');
         Route::put('/{id}', [MesinController::class, 'update'])->name('update');
+        Route::delete('/{id}', [MesinController::class, 'destroy'])->name('destroy'); // Rute Hapus Mesin
     });
 
     // Kelola Cuti & Persetujuan Izin Siswa
@@ -127,7 +126,8 @@ Route::middleware(['auth', 'hakAkses:superadmin,admin'])->group(function () {
         Route::post('/', [CabangGedungController::class, 'store'])->name('store');
         Route::get('/{id}/edit', [CabangGedungController::class, 'edit'])->name('edit');
         Route::put('/{id}', [CabangGedungController::class, 'update'])->name('update');
-        Route::delete('/{id}', [CabangGedungController::class, 'destroy'])->name('destroy');
+        Route::delete('/{id}', [CabangGedungController::class, 'destroy'])->name('destroy'); // Rute Hapus Permanen
+        Route::patch('/{id}/toggle', [CabangGedungController::class, 'toggle'])->name('toggle'); // Rute Aktif/Nonaktif
     });
 
     // Libur Khusus (Create, Edit, Update, Delete khusus Admin)
@@ -159,8 +159,8 @@ Route::middleware(['auth', 'hakAkses:superadmin,admin'])->group(function () {
     });
 
     // Pengaturan Jam Absensi
-Route::get('pengaturan/jam-absensi', [AbsensiController::class, 'editJam'])->name('jam-absensi.edit');
-Route::post('pengaturan/jam-absensi', [AbsensiController::class, 'updateJam'])->name('jam-absensi.update');
+    Route::get('pengaturan/jam-absensi', [AbsensiController::class, 'editJam'])->name('jam-absensi.edit');
+    Route::post('pengaturan/jam-absensi', [AbsensiController::class, 'updateJam'])->name('jam-absensi.update');
 });
 
 require __DIR__.'/auth.php';
