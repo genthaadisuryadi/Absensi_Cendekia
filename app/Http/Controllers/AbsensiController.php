@@ -7,6 +7,7 @@ use App\Models\CabangGedung;
 use App\Models\Pengguna;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\DB; // <-- INI YANG SEBELUMNYA TERLEWAT
 use Carbon\Carbon;
 
 class AbsensiController extends Controller
@@ -102,7 +103,6 @@ class AbsensiController extends Controller
 
             $waktuAbsen = Carbon::parse($absensi->absen);
 
-            // Hitung zona waktu cabang terlebih dahulu agar perbandingan jam akurat dalam WIB/WITA/WIT
             $cabangModel = $absensi->pengguna->cabangGedung ?? CabangGedung::find($absensi->pengguna->cabang_gedung ?? null);
             $zona = $cabangModel->zona_waktu ?? '1';
             $zonaWaktu = $zona == '1' ? 'WIB' : ($zona == '2' ? 'WITA' : 'WIT');
@@ -127,12 +127,12 @@ class AbsensiController extends Controller
                 $targetLokal = Carbon::parse($tgl . ' ' . $jam);
 
                 switch ((string) $absensi->kategori) {
-                    case '1': // Masuk
-                    case '2': // Mulai Istirahat
-                    case '3': // Selesai Istirahat
+                    case '1': 
+                    case '2': 
+                    case '3': 
                         $isTepat = $displayWaktu->lessThanOrEqualTo($targetLokal->copy()->addMinutes($toleransi));
                         break;
-                    case '4': // Pulang
+                    case '4': 
                         $isTepat = $displayWaktu->greaterThanOrEqualTo($targetLokal);
                         break;
                 }
