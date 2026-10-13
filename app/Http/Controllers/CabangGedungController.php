@@ -9,8 +9,9 @@ class CabangGedungController extends Controller
 {
     public function index()
     {
-        $data = CabangGedung::orderBy('lokasi')->get();
-        return view('cabang_gedung.index', compact('data'));
+        // Ubah nama variabel agar sesuai dengan yang dibaca oleh view index.blade.php
+        $cabangGedungs = CabangGedung::orderBy('lokasi')->get();
+        return view('cabang_gedung.index', compact('cabangGedungs'));
     }
 
     public function create()
@@ -36,7 +37,6 @@ class CabangGedungController extends Controller
             'jam_pulang' => $request->jam_pulang,
             'istirahat_mulai' => $request->istirahat_mulai,
             'istirahat_selesai' => $request->istirahat_selesai,
-            // kolom hari_libur NOT NULL -> string kosong bila tidak ada hari libur
             'hari_libur' => implode(',', $request->hari_libur ?? []),
             'zona_waktu' => $request->zona_waktu,
             'aktif' => 1,
@@ -72,7 +72,6 @@ class CabangGedungController extends Controller
             'jam_pulang' => $request->jam_pulang,
             'istirahat_mulai' => $request->istirahat_mulai,
             'istirahat_selesai' => $request->istirahat_selesai,
-            // kolom hari_libur NOT NULL -> string kosong bila tidak ada hari libur
             'hari_libur' => implode(',', $request->hari_libur ?? []),
             'zona_waktu' => $request->zona_waktu,
         ]);
@@ -81,14 +80,30 @@ class CabangGedungController extends Controller
             ->with('success', 'Cabang berhasil diupdate');
     }
 
-    public function destroy($id)
+    // ====== FUNGSI TOGGLE (AKTIF/NON-AKTIF) ======
+    public function toggle($id)
     {
         $cabang = CabangGedung::findOrFail($id);
-
-        // toggle aktif / nonaktif
+        
         $cabang->aktif = $cabang->aktif == 1 ? 0 : 1;
         $cabang->save();
 
-        return back()->with('success', 'Status cabang diperbarui');
+        $statusText = $cabang->aktif ? 'diaktifkan' : 'dinonaktifkan';
+        return back()->with('success', "Status cabang berhasil $statusText");
+    }
+
+    // ====== FUNGSI HAPUS PERMANEN DARI DATABASE ======
+    public function destroy($id)
+    {
+        try {
+            $cabang = CabangGedung::findOrFail($id);
+            $cabang->delete();
+
+            return redirect()->route('cabang-gedung.index')
+                ->with('success', 'Cabang berhasil dihapus secara permanen dari database.');
+        } catch (\Exception $e) {
+            return redirect()->route('cabang-gedung.index')
+                ->with('error', 'Gagal menghapus cabang. Pastikan tidak ada data pengguna atau mesin yang masih terhubung ke cabang ini.');
+        }
     }
 }
