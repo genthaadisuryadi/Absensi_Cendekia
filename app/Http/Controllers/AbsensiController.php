@@ -6,16 +6,54 @@ use App\Models\Absensi;
 use App\Models\CabangGedung;
 use App\Models\Pengguna;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Carbon\Carbon;
 
 class AbsensiController extends Controller
 {
-    private $defaultJam = [
-        '1' => '08:00:00', // Masuk
-        '2' => '12:00:00', // Mulai Istirahat
-        '3' => '13:00:00', // Selesai Istirahat
-        '4' => '17:00:00', // Pulang
-    ];
+    private function getJamConfig(): array
+    {
+        return DashboardController::getJamSetting();
+    }
+
+    /**
+     * HALAMAN PENGATURAN JAM ABSENSI
+     */
+    public function editJam()
+    {
+        $jamSetting = $this->getJamConfig();
+        return view('absensi.jam_setting', compact('jamSetting'));
+    }
+
+    /**
+     * SIMPAN PENGATURAN JAM ABSENSI
+     */
+    public function updateJam(Request $request)
+    {
+        $request->validate([
+            'jam_masuk'             => 'required',
+            'jam_mulai_istirahat'   => 'required',
+            'jam_selesai_istirahat' => 'required',
+            'jam_pulang'            => 'required',
+            'toleransi'             => 'required|integer|min:0|max:180',
+        ]);
+
+        $formatTime = function ($t) {
+            return strlen($t) === 5 ? $t . ':00' : $t;
+        };
+
+        $data = [
+            '1'         => $formatTime($request->jam_masuk),
+            '2'         => $formatTime($request->jam_mulai_istirahat),
+            '3'         => $formatTime($request->jam_selesai_istirahat),
+            '4'         => $formatTime($request->jam_pulang),
+            'toleransi' => (int) $request->toleransi,
+        ];
+
+        Storage::disk('local')->put('jam_absensi.json', json_encode($data, JSON_PRETTY_PRINT));
+
+        return back()->with('success', 'Pengaturan jam absensi berhasil diperbarui!');
+    }
 
     /**
      * LIST + FILTER ABSENSI
@@ -23,8 +61,9 @@ class AbsensiController extends Controller
     public function index(Request $request)
     {
         $cabangGedungs = CabangGedung::where('aktif', 1)->get();
+        $jamConfig     = $this->getJamConfig();
+        $toleransi     = (int) ($jamConfig['toleransi'] ?? 15);
 
-        // Hanya tampilkan absensi milik pengguna yang bukan Orang Tua (jabatan_status != 4)
         $query = Absensi::with(['mesin', 'pengguna.cabangGedung'])
             ->whereHas('pengguna', function ($q) {
                 $q->where('jabatan_status', '!=', 4);
@@ -63,6 +102,14 @@ class AbsensiController extends Controller
 
             $waktuAbsen = Carbon::parse($absensi->absen);
 
+            // Hitung zona waktu cabang terlebih dahulu agar perbandingan jam akurat dalam WIB/WITA/WIT
+            $cabangModel = $absensi->pengguna->cabangGedung ?? CabangGedung::find($absensi->pengguna->cabang_gedung ?? null);
+            $zona = $cabangModel->zona_waktu ?? '1';
+            $zonaWaktu = $zona == '1' ? 'WIB' : ($zona == '2' ? 'WITA' : 'WIT');
+            $seconds = $zona == '1' ? 25200 : ($zona == '2' ? 28800 : 32400);
+
+            $displayWaktu = $waktuAbsen->copy()->addSeconds($seconds);
+
             switch ((string) $absensi->kategori) {
                 case '1': $absensi->kategori_label = 'Masuk'; break;
                 case '2': $absensi->kategori_label = 'Mulai Istirahat'; break;
@@ -71,24 +118,22 @@ class AbsensiController extends Controller
                 default:  $absensi->kategori_label = '-'; break;
             }
 
-            $tgl = $waktuAbsen->toDateString();
-            $jam = $this->defaultJam[(string) $absensi->kategori] ?? null;
+            $tgl = $displayWaktu->toDateString();
+            $jam = $jamConfig[(string) $absensi->kategori] ?? null;
             $isTepat = false;
-            $target = null;
+            $targetLokal = null;
 
             if ($jam) {
-                $target = Carbon::parse($tgl . ' ' . $jam);
+                $targetLokal = Carbon::parse($tgl . ' ' . $jam);
 
                 switch ((string) $absensi->kategori) {
-                    case '1':
-                        $isTepat = $waktuAbsen->lessThanOrEqualTo($target->copy()->addMinutes(15));
+                    case '1': // Masuk
+                    case '2': // Mulai Istirahat
+                    case '3': // Selesai Istirahat
+                        $isTepat = $displayWaktu->lessThanOrEqualTo($targetLokal->copy()->addMinutes($toleransi));
                         break;
-                    case '2':
-                    case '3':
-                        $isTepat = $waktuAbsen->lessThanOrEqualTo($target->copy()->addMinutes(15));
-                        break;
-                    case '4':
-                        $isTepat = $waktuAbsen->greaterThanOrEqualTo($target);
+                    case '4': // Pulang
+                        $isTepat = $displayWaktu->greaterThanOrEqualTo($targetLokal);
                         break;
                 }
             }
@@ -97,16 +142,9 @@ class AbsensiController extends Controller
             $absensi->status_label = $isTepat ? 'Tepat Waktu' : 'Terlambat';
             $absensi->warna = $isTepat ? 'text-green-600' : 'text-red-600';
 
-            $cabangModel = $absensi->pengguna->cabangGedung ?? CabangGedung::find($absensi->pengguna->cabang_gedung);
-            $zona = $cabangModel->zona_waktu ?? '1';
-            $zonaWaktu = $zona == '1' ? 'WIB' : ($zona == '2' ? 'WITA' : 'WIT');
-            $seconds = $zona == '1' ? 25200 : ($zona == '2' ? 28800 : 32400);
-
-            $displayWaktu = $waktuAbsen->copy()->addSeconds($seconds);
-            $displayTarget = $target ? $target->copy()->addSeconds($seconds) : null;
             $absensi->display_absen = $displayWaktu->format('Y-m-d H:i:s') . ' ' . $zonaWaktu;
-            $absensi->display_batas = $displayTarget ? $displayTarget->format('Y-m-d H:i:s') : null;
-            $absensi->selisih_menit = $target ? round(abs($waktuAbsen->diffInSeconds($target)) / 60) : null;
+            $absensi->display_batas = $targetLokal ? $targetLokal->format('Y-m-d H:i:s') : null;
+            $absensi->selisih_menit = $targetLokal ? round(abs($displayWaktu->diffInSeconds($targetLokal)) / 60) : null;
         }
 
         if ($request->wantsJson()) {
@@ -116,18 +154,12 @@ class AbsensiController extends Controller
         return view('absensi.index', compact('absensis', 'cabangGedungs'));
     }
 
-    /**
-     * DETAIL ABSENSI
-     */
     public function show($id)
     {
         $absensi = Absensi::with(['mesin', 'pengguna.cabangGedung'])->findOrFail($id);
         return response()->json($absensi);
     }
 
-    /**
-     * SIMPAN ABSENSI MANUAL
-     */
     public function store(Request $request)
     {
         $data = $request->validate([
@@ -142,9 +174,6 @@ class AbsensiController extends Controller
         return response()->json($absensi, 201);
     }
 
-    /**
-     * API DASHBOARD (Statistik JSON)
-     */
     public function dashboard(Request $request)
     {
         $today = now()->format('Y-m-d');
@@ -192,7 +221,6 @@ class AbsensiController extends Controller
             ], 400);
         }
 
-        // Cari pengguna aktif yang bukan Orang Tua (jabatan_status != 4)
         $pengguna = Pengguna::where('tag', $tag)
             ->where('aktif', 1)
             ->where('jabatan_status', '!=', 4)
@@ -206,8 +234,18 @@ class AbsensiController extends Controller
         }
 
         $now = now();
-        $jamTarget = $this->defaultJam[(string) $kategori] ?? null;
-        $absenMaks = $jamTarget ? Carbon::parse($now->toDateString() . ' ' . $jamTarget) : null;
+        $jamConfig = $this->getJamConfig();
+        $jamTarget = $jamConfig[(string) $kategori] ?? null;
+
+        // Simpan absen_maks dalam UTC agar sepadan dengan kolom absen (UTC)
+        $zona = DB::table('cabang_gedung')->where('id', $pengguna->cabang_gedung)->value('zona_waktu') ?? '1';
+        $seconds = $zona == '1' ? 25200 : ($zona == '2' ? 28800 : 32400);
+        $nowLokal = $now->copy()->addSeconds($seconds);
+
+        $absenMaks = null;
+        if ($jamTarget) {
+            $absenMaks = Carbon::parse($nowLokal->toDateString() . ' ' . $jamTarget)->subSeconds($seconds);
+        }
 
         $absensi = Absensi::create([
             'nomor_induk' => $pengguna->nomor_induk,
@@ -247,7 +285,8 @@ class AbsensiController extends Controller
             return back()->with('error', "Anda sudah melakukan Absen $namaAksi hari ini.");
         }
 
-        $jamTarget = $this->defaultJam[(string) $kategori] ?? null;
+        $jamConfig = $this->getJamConfig();
+        $jamTarget = $jamConfig[(string) $kategori] ?? null;
         $absenMaks = $jamTarget ? Carbon::parse($today . ' ' . $jamTarget) : null;
 
         Absensi::create([

@@ -85,10 +85,11 @@
     ];
 
     $menuSetting = [
-        ['url' => url('jabatan'), 'label' => 'Jabatan', 'active' => request()->is('jabatan*')],
-        ['url' => route('cabang-gedung.index'), 'label' => 'Cabang', 'active' => request()->is('cabang*')],
-        ['url' => route('denda.index'), 'label' => 'Denda', 'active' => request()->is('pengaturan/denda*') || request()->is('denda*')],
-    ];
+    ['url' => route('jam-absensi.edit'), 'label' => 'Jam Absensi', 'active' => request()->is('pengaturan/jam-absensi*')],
+    ['url' => url('jabatan'), 'label' => 'Jabatan', 'active' => request()->is('jabatan*')],
+    ['url' => route('cabang-gedung.index'), 'label' => 'Cabang', 'active' => request()->is('cabang*')],
+    ['url' => route('denda.index'), 'label' => 'Denda', 'active' => request()->is('pengaturan/denda*') || request()->is('denda*')],
+];
     $settingOpen = collect($menuSetting)->contains('active', true);
 @endphp
 

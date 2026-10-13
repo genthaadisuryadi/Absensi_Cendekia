@@ -154,6 +154,10 @@ Route::middleware(['auth', 'hakAkses:superadmin,admin'])->group(function () {
         Route::put('/{id}', [DendaController::class, 'update'])->name('update');
         Route::delete('/{id}', [DendaController::class, 'destroy'])->name('destroy');
     });
+
+    // Pengaturan Jam Absensi
+Route::get('pengaturan/jam-absensi', [AbsensiController::class, 'editJam'])->name('jam-absensi.edit');
+Route::post('pengaturan/jam-absensi', [AbsensiController::class, 'updateJam'])->name('jam-absensi.update');
 });
 
 require __DIR__.'/auth.php';

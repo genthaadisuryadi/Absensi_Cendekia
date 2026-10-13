@@ -5,11 +5,52 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use App\Models\Absensi;
+use App\Models\CabangGedung;
 use Illuminate\Support\Facades\Auth;
 
 class DashboardController extends Controller
 {
+    /**
+     * Ambil pengaturan jam absensi (dari storage JSON atau default)
+     */
+    public static function getJamSetting(): array
+    {
+        $default = [
+            '1'         => '08:00:00', // Masuk
+            '2'         => '12:00:00', // Mulai Istirahat
+            '3'         => '13:00:00', // Selesai Istirahat
+            '4'         => '17:00:00', // Pulang
+            'toleransi' => 15,         // Toleransi keterlambatan (menit)
+        ];
+
+        if (Storage::disk('local')->exists('jam_absensi.json')) {
+            $saved = json_decode(Storage::disk('local')->get('jam_absensi.json'), true);
+            if (is_array($saved)) {
+                return array_merge($default, $saved);
+            }
+        }
+
+        return $default;
+    }
+
+    /**
+     * Konversi waktu UTC database ke waktu lokal cabang (WIB/WITA/WIT)
+     */
+    public static function toWaktuCabang($waktuRaw, $cabangGedungId = null): Carbon
+    {
+        $waktu = Carbon::parse($waktuRaw);
+        $zona = '1'; // Default WIB (+7 jam)
+
+        if ($cabangGedungId) {
+            $zona = DB::table('cabang_gedung')->where('id', $cabangGedungId)->value('zona_waktu') ?? '1';
+        }
+
+        $seconds = $zona == '1' ? 25200 : ($zona == '2' ? 28800 : 32400);
+        return $waktu->copy()->addSeconds($seconds);
+    }
+
     public function index(Request $request)
     {
         $user = Auth::user();
@@ -17,7 +58,6 @@ class DashboardController extends Controller
         $month = $request->get('month', Carbon::now()->month);
         $year  = $request->get('year', Carbon::now()->year);
 
-        // Ambil ID hak_akses dari tabel jabatan_status
         $hakAkses = (int) DB::table('jabatan_status')
             ->where('id', $user->jabatan_status)
             ->value('hak_akses');
@@ -30,6 +70,9 @@ class DashboardController extends Controller
         if ($hakAkses === 4) {
             return redirect()->route('dashboard.ortu');
         }
+
+        $jamSetting = self::getJamSetting();
+        $toleransi  = (int) ($jamSetting['toleransi'] ?? 15);
 
         /**
          * ===============================
@@ -60,7 +103,7 @@ class DashboardController extends Controller
                 'terlambat'        => $stats['telat'],
                 'lokasiCabang'     => $lokasiCabang,
                 'cabangGedungId'   => $cabangGedungId ?? null,
-                'hakAkses'         => 1, // Menampilkan filter cabang di view
+                'hakAkses'         => 1,
             ]);
         }
 
@@ -85,19 +128,13 @@ class DashboardController extends Controller
             ->take(5)
             ->get();
 
-        $defaultJam = [
-            '1' => '08:00:00',
-            '2' => '12:00:00',
-            '3' => '13:00:00',
-            '4' => '17:00:00',
-        ];
-
         foreach ($riwayatTerbaru as $riwayat) {
             if (empty($riwayat->absen)) {
                 continue;
             }
 
-            $waktuAbsen = Carbon::parse($riwayat->absen);
+            $waktuLokal = self::toWaktuCabang($riwayat->absen, $user->cabang_gedung);
+            $riwayat->absen = $waktuLokal->format('Y-m-d H:i:s');
 
             $kategoriMap = [
                 1 => 'Presensi Masuk',
@@ -107,16 +144,17 @@ class DashboardController extends Controller
             ];
             $riwayat->kategori_label = $kategoriMap[$riwayat->kategori] ?? '-';
 
-            $jamTarget = $defaultJam[$riwayat->kategori] ?? null;
+            $jamTarget = $jamSetting[(string) $riwayat->kategori] ?? null;
             $riwayat->status_label = 'Tepat Waktu';
 
             if ($jamTarget) {
-                $target = Carbon::parse($waktuAbsen->toDateString() . ' ' . $jamTarget);
+                $target = Carbon::parse($waktuLokal->toDateString() . ' ' . $jamTarget);
+                $batasTepat = $target->copy()->addMinutes($toleransi);
 
-                if ((int) $riwayat->kategori === 1 && $waktuAbsen->greaterThan($target->copy()->addMinutes(15))) {
-                    $selisih = $waktuAbsen->diffInMinutes($target);
+                if ((int) $riwayat->kategori === 1 && $waktuLokal->greaterThan($batasTepat)) {
+                    $selisih = (int) round($target->diffInMinutes($waktuLokal));
                     $riwayat->status_label = "Terlambat {$selisih} Menit";
-                } elseif ((int) $riwayat->kategori === 4 && $waktuAbsen->lessThan($target)) {
+                } elseif ((int) $riwayat->kategori === 4 && $waktuLokal->lessThan($target)) {
                     $riwayat->status_label = 'Pulang Cepat';
                 }
             }
@@ -134,7 +172,6 @@ class DashboardController extends Controller
     /**
      * =====================================
      * GRAFIK ABSEN MASUK BULANAN
-     * kategori = 1
      * =====================================
      */
     private function getMonthlyStats(
@@ -149,11 +186,19 @@ class DashboardController extends Controller
         $dataTepat = array_fill(0, $daysInMonth, 0);
         $dataTelat = array_fill(0, $daysInMonth, 0);
 
-        $query = Absensi::query()
+        $jamSetting = self::getJamSetting();
+        $jamMasukStr = $jamSetting['1'] ?? '08:00:00';
+        $toleransi = (int) ($jamSetting['toleransi'] ?? 15);
+
+        $query = Absensi::with('pengguna')
             ->where('kategori', 1)
             ->whereMonth('absen', $month)
             ->whereYear('absen', $year)
-            ->whereNotNull('absen');
+            ->whereNotNull('absen')
+            ->whereHas('pengguna', function ($q) {
+                // Jangan hitung akun Orang Tua
+                $q->where('jabatan_status', '!=', 4);
+            });
 
         if ($userNomorInduk) {
             $query->where('nomor_induk', $userNomorInduk);
@@ -166,14 +211,18 @@ class DashboardController extends Controller
         }
 
         foreach ($query->get() as $row) {
-            $waktuAbsen = Carbon::parse($row->absen);
-            $hariIndex  = (int) $waktuAbsen->format('d') - 1;
+            $cabangId = $row->pengguna->cabang_gedung ?? null;
+            $waktuLokal = self::toWaktuCabang($row->absen, $cabangId);
+            $hariIndex  = (int) $waktuLokal->format('d') - 1;
 
-            $jamMasuk = Carbon::parse(
-                $waktuAbsen->toDateString() . ' 08:00:00'
-            );
+            if ($hariIndex < 0 || $hariIndex >= $daysInMonth) {
+                continue;
+            }
 
-            if ($waktuAbsen->lte($jamMasuk)) {
+            $batasMasuk = Carbon::parse($waktuLokal->toDateString() . ' ' . $jamMasukStr)
+                ->addMinutes($toleransi);
+
+            if ($waktuLokal->lte($batasMasuk)) {
                 $dataTepat[$hariIndex]++;
             } else {
                 $dataTelat[$hariIndex]++;
@@ -195,31 +244,45 @@ class DashboardController extends Controller
     public function ortu(Request $request)
     {
         $user = Auth::user();
-
         $anakAnak = $user->anak()->get();
-        $today = Carbon::today();
+
+        $jamSetting = self::getJamSetting();
+        $jamMasukStr = $jamSetting['1'] ?? '08:00:00';
+        $toleransi = (int) ($jamSetting['toleransi'] ?? 15);
+
+        // Gunakan tanggal hari ini sesuai WIB (+7 jam)
+        $todayWib = Carbon::now()->addHours(7)->toDateString();
 
         $riwayatAbsensi = collect();
 
         foreach ($anakAnak as $anak) {
+            // Ambil semua absensi masuk milik anak, lalu cek yang tanggal lokalnya hari ini
             $absenHariIni = DB::table('absensi')
                 ->where('nomor_induk', $anak->nomor_induk)
                 ->where('kategori', 1)
-                ->whereDate('absen', $today)
-                ->first();
+                ->orderBy('absen', 'desc')
+                ->get()
+                ->first(function ($item) use ($anak, $todayWib) {
+                    if (empty($item->absen)) return false;
+                    $lokal = self::toWaktuCabang($item->absen, $anak->cabang_gedung);
+                    return $lokal->toDateString() === $todayWib;
+                });
 
             $anak->absen_hari_ini = $absenHariIni;
 
             if ($absenHariIni && $absenHariIni->absen) {
-                $waktuAbsen = Carbon::parse($absenHariIni->absen);
-                $jamMasuk = Carbon::parse($today->toDateString() . ' 08:00:00');
-                $anak->jam_masuk = $waktuAbsen->format('H:i');
-                $anak->status_absen = $waktuAbsen->lte($jamMasuk) ? 'Tepat Waktu' : 'Terlambat';
+                $waktuLokal = self::toWaktuCabang($absenHariIni->absen, $anak->cabang_gedung);
+                $batasMasuk = Carbon::parse($waktuLokal->toDateString() . ' ' . $jamMasukStr)
+                    ->addMinutes($toleransi);
+
+                $anak->jam_masuk = $waktuLokal->format('H:i') . ' WIB';
+                $anak->status_absen = $waktuLokal->lte($batasMasuk) ? 'Tepat Waktu' : 'Terlambat';
             } else {
                 $anak->jam_masuk = '-';
                 $anak->status_absen = 'Belum Absen';
             }
 
+            // Ambil riwayat absensi 5 terakhir untuk anak ini & konversi ke jam WIB
             $riwayat = DB::table('absensi')
                 ->where('nomor_induk', $anak->nomor_induk)
                 ->orderBy('absen', 'desc')
@@ -227,6 +290,9 @@ class DashboardController extends Controller
                 ->get()
                 ->map(function ($item) use ($anak) {
                     $item->nama_anak = $anak->nama;
+                    if (!empty($item->absen)) {
+                        $item->absen = self::toWaktuCabang($item->absen, $anak->cabang_gedung)->format('Y-m-d H:i:s');
+                    }
                     return $item;
                 });
 
