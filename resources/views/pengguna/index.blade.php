@@ -69,7 +69,7 @@
                 </thead>
 
                 <tbody class="divide-y divide-gray-100">
-                    @foreach ($pengguna as$data)
+                    @foreach ($pengguna as $data)
                         @continue($data->nomor_induk == 0)
 
                         <tr class="hover:bg-indigo-50/30 transition">
