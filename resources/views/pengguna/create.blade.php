@@ -48,7 +48,7 @@
                 </div>
 
                 <div class="field">
-                    <label for="nomor_induk">Nomor Induk</label>
+                    <label for="nomor_induk">Nomor Induk (NIS / NIP / ID Login)</label>
                     <div class="input-icon">
                         <i class="bi bi-person-badge"></i>
                         <input type="text" id="nomor_induk" name="nomor_induk"
@@ -70,17 +70,6 @@
                 </div>
 
                 <div class="field">
-                    <label for="tag">Tag <span class="opt">(opsional)</span></label>
-                    <div class="input-icon">
-                        <i class="bi bi-upc-scan"></i>
-                        <input type="text" id="tag" name="tag"
-                            class="form-control @error('tag') is-invalid @enderror"
-                            value="{{ old('tag') }}" placeholder="Scan kartu / isi manual">
-                    </div>
-                    @error('tag') <div class="field-error">{{ $message }}</div> @enderror
-                </div>
-
-                <div class="field">
                     <label for="jabatan_status">Status Jabatan</label>
                     <div class="input-icon">
                         <i class="bi bi-briefcase"></i>
@@ -88,7 +77,12 @@
                             class="form-select @error('jabatan_status') is-invalid @enderror" required>
                             <option value="">-- Pilih Jabatan --</option>
                             @foreach ($jabatans as $jab)
-                                <option value="{{ $jab->id }}" {{ old('jabatan_status') == $jab->id ? 'selected' : '' }}>
+                                @php
+                                    $roleKey = str_replace(' ', '_', strtolower($jab->hak ?? $jab->jabatan_status));
+                                @endphp
+                                <option value="{{ $jab->id }}"
+                                    data-role="{{ $roleKey }}"
+                                    {{ old('jabatan_status') == $jab->id ? 'selected' : '' }}>
                                     {{ $jab->jabatan_status }}
                                 </option>
                             @endforeach
@@ -97,7 +91,7 @@
                     @error('jabatan_status') <div class="field-error">{{ $message }}</div> @enderror
                 </div>
 
-                <div class="field full">
+                <div class="field">
                     <label for="cabang_gedung">Cabang Gedung</label>
                     <div class="input-icon">
                         <i class="bi bi-geo-alt"></i>
@@ -114,6 +108,44 @@
                     @error('cabang_gedung') <div class="field-error">{{ $message }}</div> @enderror
                 </div>
 
+                {{-- FIELD KHUSUS SISWA: TAG RFID --}}
+                <div class="field full" id="field-tag-wrapper">
+                    <label for="tag">Tag Kartu RFID <span class="opt">(Khusus Siswa)</span></label>
+                    <div class="input-icon">
+                        <i class="bi bi-upc-scan"></i>
+                        <input type="text" id="tag" name="tag"
+                            class="form-control @error('tag') is-invalid @enderror"
+                            value="{{ old('tag') }}" placeholder="Scan kartu RFID di mesin / isi UID manual">
+                    </div>
+                    <small class="text-slate-400 text-xs mt-1 block">Hanya diisi untuk akun Siswa yang melakukan tap kartu di mesin RFID.</small>
+                    @error('tag') <div class="field-error">{{ $message }}</div> @enderror
+                </div>
+
+                {{-- FIELD KHUSUS ORANG TUA: PILIH ANAK (SISWA) --}}
+                <div class="field full" id="field-anak-wrapper" style="display:none;">
+                    <label class="font-semibold text-slate-700 mb-1 block">
+                        <i class="bi bi-people-fill text-indigo-600"></i> Pilih Siswa (Anak) yang Dipantau
+                    </label>
+                    <p class="text-xs text-slate-500 mb-2">Centang satu atau lebih siswa yang merupakan anak dari Orang Tua ini:</p>
+
+                    <div class="border border-slate-200 rounded-xl p-3 bg-slate-50 max-h-52 overflow-y-auto space-y-2">
+                        @forelse ($siswaList as $siswa)
+                            <label class="flex items-center gap-3 p-2 rounded-lg bg-white border border-slate-200/80 hover:border-indigo-400 cursor-pointer transition">
+                                <input type="checkbox" name="siswa_ids[]" value="{{ $siswa->nomor_induk }}"
+                                    class="w-4 h-4 text-indigo-600 rounded"
+                                    {{ in_array($siswa->nomor_induk, old('siswa_ids', [])) ? 'checked' : '' }}>
+                                <span class="text-sm font-semibold text-slate-700">{{ $siswa->nama }}</span>
+                                <span class="text-xs text-slate-400 ml-auto">NIS: {{ $siswa->nomor_induk }}</span>
+                            </label>
+                        @empty
+                            <div class="text-sm text-amber-600 py-2">
+                                <i class="bi bi-info-circle"></i> Belum ada data pengguna dengan jabatan <strong>Siswa</strong>. Silakan tambahkan akun Siswa terlebih dahulu.
+                            </div>
+                        @endforelse
+                    </div>
+                    @error('siswa_ids') <div class="field-error">{{ $message }}</div> @enderror
+                </div>
+
                 {{-- ===== KEAMANAN AKUN ===== --}}
                 <div class="field full" style="margin-top:.5rem;padding-top:1.25rem;border-top:1px dashed #e2e8f0;font-size:.7rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#d97706;">
                     <i class="bi bi-shield-lock-fill"></i> Keamanan Akun
@@ -125,7 +157,7 @@
                         <i class="bi bi-lock"></i>
                         <input type="password" id="password" name="password" style="padding-right:2.8rem"
                             class="form-control @error('password') is-invalid @enderror"
-                            placeholder="Masukkan password" required>
+                            placeholder="Minimal 8 karakter" required>
                         <button type="button" class="pw-toggle" data-target="password" tabindex="-1" aria-label="Tampilkan password"
                             style="position:absolute;right:.5rem;top:50%;transform:translateY(-50%);width:2rem;height:2rem;border:0;background:none;color:#94a3b8;border-radius:8px;cursor:pointer;z-index:3">
                             <i class="bi bi-eye"></i>
@@ -163,6 +195,7 @@
 </div>
 
 <script>
+    // Toggle lihat password
     document.querySelectorAll('.pw-toggle').forEach(btn => {
         btn.addEventListener('click', () => {
             const input = document.getElementById(btn.dataset.target);
@@ -172,5 +205,37 @@
             icon.className = show ? 'bi bi-eye-slash' : 'bi bi-eye';
         });
     });
+
+    // Tampilkan/sembunyikan field Tag & Pilih Anak sesuai Status Jabatan
+    const jabatanSelect = document.getElementById('jabatan_status');
+    const tagWrapper = document.getElementById('field-tag-wrapper');
+    const tagInput = document.getElementById('tag');
+    const anakWrapper = document.getElementById('field-anak-wrapper');
+
+    function handleJabatanChange() {
+        const selectedOption = jabatanSelect.options[jabatanSelect.selectedIndex];
+        const role = selectedOption ? (selectedOption.getAttribute('data-role') || '') : '';
+        const val = jabatanSelect.value;
+
+        const isOrtu = role.includes('orang_tua') || role.includes('orang tua') || val === '4';
+        const isSiswa = role.includes('general') || role.includes('siswa') || val === '3';
+
+        if (isOrtu) {
+            tagWrapper.style.display = 'none';
+            tagInput.value = '';
+            anakWrapper.style.display = 'block';
+        } else if (isSiswa) {
+            tagWrapper.style.display = 'block';
+            anakWrapper.style.display = 'none';
+        } else {
+            // Admin / SuperAdmin
+            tagWrapper.style.display = 'none';
+            tagInput.value = '';
+            anakWrapper.style.display = 'none';
+        }
+    }
+
+    jabatanSelect.addEventListener('change', handleJabatanChange);
+    handleJabatanChange();
 </script>
 @endsection

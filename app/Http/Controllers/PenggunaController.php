@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rule;
 use App\Models\Pengguna;
 use Illuminate\Support\Facades\DB;
 
@@ -12,16 +13,15 @@ class PenggunaController extends Controller
     // ====== INDEX ======
     public function index()
     {
-       $pengguna = DB::table('pengguna')
-            // Biar yg muncul bukan ID
-        ->leftJoin('jabatan_status', 'pengguna.jabatan_status', '=', 'jabatan_status.id')
-        ->leftJoin('cabang_gedung', 'pengguna.cabang_gedung', '=', 'cabang_gedung.id')
-        ->select(
-            'pengguna.*', 
-            'jabatan_status.jabatan_status',
-            'cabang_gedung.lokasi'
-        )
-        ->get();
+        $pengguna = DB::table('pengguna')
+            ->leftJoin('jabatan_status', 'pengguna.jabatan_status', '=', 'jabatan_status.id')
+            ->leftJoin('cabang_gedung', 'pengguna.cabang_gedung', '=', 'cabang_gedung.id')
+            ->select(
+                'pengguna.*',
+                'jabatan_status.jabatan_status',
+                'cabang_gedung.lokasi'
+            )
+            ->get();
 
         return view('pengguna.index', compact('pengguna'));
     }
@@ -29,41 +29,75 @@ class PenggunaController extends Controller
     // ====== CREATE ======
     public function create()
     {
-        // ambil data untuk dropdown
-        $jabatans = DB::table('jabatan_status')->get();
+        $jabatans = DB::table('jabatan_status')
+            ->leftJoin('hak_akses', 'jabatan_status.hak_akses', '=', 'hak_akses.id')
+            ->select('jabatan_status.*', 'hak_akses.hak')
+            ->get();
+
         $lokasis = DB::table('cabang_gedung')->get();
 
-        return view('pengguna.create', compact('jabatans', 'lokasis'));
+        // Ambil daftar pengguna dengan role Siswa (hak_akses = 3 / general) untuk dipilih oleh Orang Tua
+        $siswaList = DB::table('pengguna')
+            ->join('jabatan_status', 'pengguna.jabatan_status', '=', 'jabatan_status.id')
+            ->join('hak_akses', 'jabatan_status.hak_akses', '=', 'hak_akses.id')
+            ->whereIn('hak_akses.hak', ['general', 'siswa'])
+            ->orWhere('pengguna.jabatan_status', 3)
+            ->select('pengguna.nomor_induk', 'pengguna.nama')
+            ->orderBy('pengguna.nama')
+            ->get();
+
+        return view('pengguna.create', compact('jabatans', 'lokasis', 'siswaList'));
     }
 
     // ====== STORE ======
     public function store(Request $request)
     {
+        // Cek hak akses dari jabatan yang dipilih
+        $hakAkses = DB::table('jabatan_status')
+            ->join('hak_akses', 'jabatan_status.hak_akses', '=', 'hak_akses.id')
+            ->where('jabatan_status.id', $request->jabatan_status)
+            ->value('hak_akses.hak');
+
+        $roleNormalized = str_replace(' ', '_', strtolower(trim($hakAkses ?? '')));
+        $isSiswa = in_array($roleNormalized, ['general', 'siswa'], true) || (int) $request->jabatan_status === 3;
+        $isOrtu  = in_array($roleNormalized, ['orang_tua'], true) || (int) $request->jabatan_status === 4;
+
+        // Hanya Siswa yang boleh memiliki Tag RFID
+        $tagValue = $isSiswa && $request->filled('tag') ? trim($request->tag) : null;
+        $request->merge(['tag' => $tagValue]);
+
         $request->validate([
             'nomor_induk'    => 'required|unique:pengguna,nomor_induk',
-            'nama'           => 'required',
-            'jabatan_status' => 'required',
-            'cabang_gedung'  => 'required',
+            'nama'           => 'required|string|max:255',
+            'tag'            => 'nullable|unique:pengguna,tag',
+            'jabatan_status' => 'required|exists:jabatan_status,id',
+            'cabang_gedung'  => 'required|exists:cabang_gedung,id',
             'password'       => 'required|min:8|confirmed',
+            'siswa_ids'      => $isOrtu ? 'required|array|min:1' : 'nullable|array',
+            'siswa_ids.*'    => 'exists:pengguna,nomor_induk',
+        ], [
+            'tag.unique'         => 'Kartu RFID (Tag) ini sudah terdaftar pada pengguna lain.',
+            'siswa_ids.required' => 'Silakan pilih minimal 1 Siswa (Anak) untuk akun Orang Tua ini.',
         ]);
 
-        // ===== PASSWORD MD5 -> Harusnya Bcrypt =====
-        $hashedPassword = Hash::make($request->password);
-
-        // 3. Simpan ke Database
-        Pengguna::create([
+        $pengguna = Pengguna::create([
             'nomor_induk'    => $request->nomor_induk,
             'nama'           => $request->nama,
-            'tag'            => $request->tag,
+            'tag'            => $tagValue,
             'jabatan_status' => $request->jabatan_status,
             'cabang_gedung'  => $request->cabang_gedung,
-            'password'       => $hashedPassword,
-            'aktif'          => 1 // default aktif
+            'password'       => Hash::make($request->password),
+            'aktif'          => 1,
         ]);
+
+        // Simpan relasi anak jika role adalah Orang Tua
+        if ($isOrtu && $request->filled('siswa_ids')) {
+            $pengguna->anak()->sync($request->siswa_ids);
+        }
 
         return redirect()->route('pengguna.index')->with([
             'successAdd' => 1,
-            'nama'       => $request->nama
+            'nama'       => $request->nama,
         ]);
     }
 
@@ -71,45 +105,93 @@ class PenggunaController extends Controller
     public function edit($id)
     {
         $user = Pengguna::where('nomor_induk', $id)->firstOrFail();
-        $jabatans = DB::table('jabatan_status')->get();
+
+        $jabatans = DB::table('jabatan_status')
+            ->leftJoin('hak_akses', 'jabatan_status.hak_akses', '=', 'hak_akses.id')
+            ->select('jabatan_status.*', 'hak_akses.hak')
+            ->get();
+
         $lokasis = DB::table('cabang_gedung')->get();
 
-        return view('pengguna.edit', compact('user', 'jabatans', 'lokasis'));
+        // Daftar semua siswa
+        $siswaList = DB::table('pengguna')
+            ->join('jabatan_status', 'pengguna.jabatan_status', '=', 'jabatan_status.id')
+            ->join('hak_akses', 'jabatan_status.hak_akses', '=', 'hak_akses.id')
+            ->where(function ($q) {
+                $q->whereIn('hak_akses.hak', ['general', 'siswa'])
+                  ->orWhere('pengguna.jabatan_status', 3);
+            })
+            ->where('pengguna.nomor_induk', '!=', $user->nomor_induk)
+            ->select('pengguna.nomor_induk', 'pengguna.nama')
+            ->orderBy('pengguna.nama')
+            ->get();
+
+        // Daftar nomor_induk anak yang sudah terhubung dengan akun orang tua ini
+        $selectedSiswaIds = DB::table('orang_tua_siswa')
+            ->where('orang_tua_id', $user->nomor_induk)
+            ->pluck('siswa_id')
+            ->toArray();
+
+        return view('pengguna.edit', compact('user', 'jabatans', 'lokasis', 'siswaList', 'selectedSiswaIds'));
     }
 
     // ====== UPDATE: Memperbarui Data ======
     public function update(Request $request, $id)
     {
-        // $user = Pengguna::where('nomor_induk', $id)->firstOrFail();
-        $user = Pengguna::findOrFail($id); 
+        $user = Pengguna::where('nomor_induk', $id)->firstOrFail();
 
-        $user->update([
+        $hakAkses = DB::table('jabatan_status')
+            ->join('hak_akses', 'jabatan_status.hak_akses', '=', 'hak_akses.id')
+            ->where('jabatan_status.id', $request->jabatan_status)
+            ->value('hak_akses.hak');
+
+        $roleNormalized = str_replace(' ', '_', strtolower(trim($hakAkses ?? '')));
+        $isSiswa = in_array($roleNormalized, ['general', 'siswa'], true) || (int) $request->jabatan_status === 3;
+        $isOrtu  = in_array($roleNormalized, ['orang_tua'], true) || (int) $request->jabatan_status === 4;
+
+        // Kosongkan Tag RFID jika bukan Siswa
+        $tagValue = $isSiswa && $request->filled('tag') ? trim($request->tag) : null;
+        $request->merge(['tag' => $tagValue]);
+
+        $request->validate([
+            'nomor_induk'    => ['required', Rule::unique('pengguna', 'nomor_induk')->ignore($user->nomor_induk, 'nomor_induk')],
+            'nama'           => 'required|string|max:255',
+            'tag'            => ['nullable', Rule::unique('pengguna', 'tag')->ignore($user->nomor_induk, 'nomor_induk')],
+            'jabatan_status' => 'required|exists:jabatan_status,id',
+            'cabang_gedung'  => 'required|exists:cabang_gedung,id',
+            'password'       => 'nullable|min:8|confirmed',
+            'siswa_ids'      => $isOrtu ? 'required|array|min:1' : 'nullable|array',
+            'siswa_ids.*'    => 'exists:pengguna,nomor_induk',
+        ], [
+            'tag.unique'         => 'Kartu RFID (Tag) ini sudah terdaftar pada pengguna lain.',
+            'siswa_ids.required' => 'Silakan pilih minimal 1 Siswa (Anak) untuk akun Orang Tua ini.',
+        ]);
+
+        $dataUpdate = [
             'nomor_induk'    => $request->nomor_induk,
             'nama'           => $request->nama,
-            'tag'            => $request->tag,
+            'tag'            => $tagValue,
             'jabatan_status' => $request->jabatan_status,
-            // 'password'       => $pass, //kalo mau tambahin 
             'cabang_gedung'  => $request->cabang_gedung,
-        ]);
+        ];
+
+        if ($request->filled('password')) {
+            $dataUpdate['password'] = Hash::make($request->password);
+        }
+
+        $user->update($dataUpdate);
+
+        // Sinkronisasi relasi anak jika role adalah Orang Tua
+        if ($isOrtu) {
+            $user->anak()->sync($request->input('siswa_ids', []));
+        } else {
+            $user->anak()->detach();
+        }
 
         return redirect()->route('pengguna.index')->with([
             'successEdit' => 1,
-            'nama'        => $request->nama
+            'nama'        => $request->nama,
         ]);
-
-    //     $data = [
-    //     'nama' => $request->nama,
-    //     // data lainnya...
-    // ];
-
-    // // Hanya update password jika input password diisi
-    // if ($request->filled('password')) {
-    //     $request->validate(['password' => 'min:6|confirmed']);
-    //     $data['password'] = Hash::make($request->password);
-    // }
-
-    // $user->update($data);
-    // return redirect()->back()->with('success', 'Data diperbarui');
     }
 
     // ====== TOGGLE STATUS: Aktif/Non-Aktif ======
@@ -117,13 +199,13 @@ class PenggunaController extends Controller
     {
         $user = Pengguna::where('nomor_induk', $id)->firstOrFail();
         $newStatus = ($user->aktif == 1) ? 0 : 1;
-        
+
         $user->update(['aktif' => $newStatus]);
 
         return redirect()->back()->with([
             'successDelete' => 1,
             'nama'          => $user->nama,
-            'aktifText'     => ($newStatus == 1 ? "aktif" : "non-aktif")
+            'aktifText'     => ($newStatus == 1 ? 'aktif' : 'non-aktif'),
         ]);
     }
 

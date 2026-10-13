@@ -10,7 +10,6 @@ use Carbon\Carbon;
 
 class AbsensiController extends Controller
 {
-    // Default jam kerja (bisa diubah sesuai kebutuhan per kategori)
     private $defaultJam = [
         '1' => '08:00:00', // Masuk
         '2' => '12:00:00', // Mulai Istirahat
@@ -25,13 +24,16 @@ class AbsensiController extends Controller
     {
         $cabangGedungs = CabangGedung::where('aktif', 1)->get();
 
-        $query = Absensi::with(['mesin', 'pengguna.cabangGedung']);
+        // Hanya tampilkan absensi milik pengguna yang bukan Orang Tua (jabatan_status != 4)
+        $query = Absensi::with(['mesin', 'pengguna.cabangGedung'])
+            ->whereHas('pengguna', function ($q) {
+                $q->where('jabatan_status', '!=', 4);
+            });
 
-        // Filter Tanggal
         if ($request->filled('awal') && $request->filled('akhir')) {
             $query->whereBetween('absen', [
                 $request->awal . ' 00:00:00',
-                $request->akhir . ' 23:59:59'
+                $request->akhir . ' 23:59:59',
             ]);
         }
 
@@ -45,9 +47,8 @@ class AbsensiController extends Controller
             });
         }
 
-        $absensis = $query->orderBy('absen', 'asc')->get();
+        $absensis = $query->orderBy('absen', 'desc')->get();
 
-        // Proses status tiap absensi
         foreach ($absensis as $absensi) {
             $absensi->status = null;
             $absensi->status_label = null;
@@ -56,36 +57,37 @@ class AbsensiController extends Controller
             $absensi->display_batas = null;
             $absensi->selisih_menit = null;
 
-            if (empty($absensi->absen)) continue;
+            if (empty($absensi->absen)) {
+                continue;
+            }
 
             $waktuAbsen = Carbon::parse($absensi->absen);
 
-            // Tentukan kategori label
-            switch ((string)$absensi->kategori) {
+            switch ((string) $absensi->kategori) {
                 case '1': $absensi->kategori_label = 'Masuk'; break;
                 case '2': $absensi->kategori_label = 'Mulai Istirahat'; break;
                 case '3': $absensi->kategori_label = 'Selesai Istirahat'; break;
                 case '4': $absensi->kategori_label = 'Pulang'; break;
-                default: $absensi->kategori_label = '-'; break;
+                default:  $absensi->kategori_label = '-'; break;
             }
 
             $tgl = $waktuAbsen->toDateString();
-            $jam = $this->defaultJam[(string)$absensi->kategori] ?? null;
+            $jam = $this->defaultJam[(string) $absensi->kategori] ?? null;
             $isTepat = false;
             $target = null;
 
             if ($jam) {
                 $target = Carbon::parse($tgl . ' ' . $jam);
 
-                switch ((string)$absensi->kategori) {
-                    case '1': // Masuk
-                        $isTepat = $waktuAbsen->between($target->copy()->subMinutes(15), $target->copy()->addMinutes(15));
-                        break;
-                    case '2': // Mulai Istirahat
-                    case '3': // Selesai Istirahat
+                switch ((string) $absensi->kategori) {
+                    case '1':
                         $isTepat = $waktuAbsen->lessThanOrEqualTo($target->copy()->addMinutes(15));
                         break;
-                    case '4': // Pulang
+                    case '2':
+                    case '3':
+                        $isTepat = $waktuAbsen->lessThanOrEqualTo($target->copy()->addMinutes(15));
+                        break;
+                    case '4':
                         $isTepat = $waktuAbsen->greaterThanOrEqualTo($target);
                         break;
                 }
@@ -95,13 +97,11 @@ class AbsensiController extends Controller
             $absensi->status_label = $isTepat ? 'Tepat Waktu' : 'Terlambat';
             $absensi->warna = $isTepat ? 'text-green-600' : 'text-red-600';
 
-            // timezone dari cabang pengguna
             $cabangModel = $absensi->pengguna->cabangGedung ?? CabangGedung::find($absensi->pengguna->cabang_gedung);
             $zona = $cabangModel->zona_waktu ?? '1';
             $zonaWaktu = $zona == '1' ? 'WIB' : ($zona == '2' ? 'WITA' : 'WIT');
             $seconds = $zona == '1' ? 25200 : ($zona == '2' ? 28800 : 32400);
 
-            // formatted display times accounting for zona
             $displayWaktu = $waktuAbsen->copy()->addSeconds($seconds);
             $displayTarget = $target ? $target->copy()->addSeconds($seconds) : null;
             $absensi->display_absen = $displayWaktu->format('Y-m-d H:i:s') . ' ' . $zonaWaktu;
@@ -126,13 +126,13 @@ class AbsensiController extends Controller
     }
 
     /**
-     * SIMPAN ABSENSI
+     * SIMPAN ABSENSI MANUAL
      */
     public function store(Request $request)
     {
         $data = $request->validate([
             'nomor_induk' => 'required|exists:pengguna,nomor_induk',
-            'absen'    => 'required|datetime',
+            'absen'       => 'required|date',
             'kategori'    => 'required|in:1,2,3,4',
             'idmesin'     => 'nullable',
         ]);
@@ -148,7 +148,7 @@ class AbsensiController extends Controller
     public function dashboard(Request $request)
     {
         $today = now()->format('Y-m-d');
-        
+
         $todayStats = Absensi::whereDate('absen', $today)
             ->selectRaw('kategori, count(*) as total')
             ->groupBy('kategori')
@@ -157,7 +157,7 @@ class AbsensiController extends Controller
 
         $monthStart = now()->startOfMonth()->format('Y-m-d');
         $monthEnd = now()->endOfMonth()->format('Y-m-d');
-        
+
         $monthlyStats = Absensi::whereBetween('absen', [$monthStart, $monthEnd])
             ->selectRaw('DATE(absen) as tanggal, count(*) as total')
             ->groupBy('tanggal')
@@ -166,111 +166,69 @@ class AbsensiController extends Controller
 
         return response()->json([
             'today' => [
-                'masuk' => $todayStats[1] ?? 0,
-                'istirahat_mulai' => $todayStats[2] ?? 0,
+                'masuk'             => $todayStats[1] ?? 0,
+                'istirahat_mulai'   => $todayStats[2] ?? 0,
                 'istirahat_selesai' => $todayStats[3] ?? 0,
-                'pulang' => $todayStats[4] ?? 0,
-                'total' => array_sum($todayStats->toArray())
+                'pulang'            => $todayStats[4] ?? 0,
+                'total'             => array_sum($todayStats->toArray()),
             ],
-            'monthly' => $monthlyStats
+            'monthly' => $monthlyStats,
         ]);
     }
 
+    /**
+     * SIMPAN ABSENSI DARI MESIN ESP8266 RFID
+     */
     public function storeFromMachine(Request $request)
     {
-        $tag = $request->query('tag');
-        $idmesin = $request->query('idmesin');
-        $kategori = $request->query('kategori');
+        $tag = trim($request->query('tag', $request->input('tag', '')));
+        $idmesin = $request->query('idmesin', $request->input('idmesin'));
+        $kategori = $request->query('kategori', $request->input('kategori'));
 
         if (!$tag || !$kategori) {
             return response()->json([
-                'status' => 'error',
-                'message' => 'Parameter kurang'
+                'status'  => 'error',
+                'message' => 'Parameter kurang',
             ], 400);
         }
 
-    $pengguna = Pengguna::where('tag', $tag)->first();
+        // Cari pengguna aktif yang bukan Orang Tua (jabatan_status != 4)
+        $pengguna = Pengguna::where('tag', $tag)
+            ->where('aktif', 1)
+            ->where('jabatan_status', '!=', 4)
+            ->first();
 
-    if (!$pengguna) {
+        if (!$pengguna) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Kartu tidak terdaftar untuk Siswa',
+            ], 404);
+        }
+
+        $now = now();
+        $jamTarget = $this->defaultJam[(string) $kategori] ?? null;
+        $absenMaks = $jamTarget ? Carbon::parse($now->toDateString() . ' ' . $jamTarget) : null;
+
+        $absensi = Absensi::create([
+            'nomor_induk' => $pengguna->nomor_induk,
+            'absen'       => $now,
+            'absen_maks'  => $absenMaks,
+            'kategori'    => $kategori,
+            'idmesin'     => $idmesin,
+        ]);
+
         return response()->json([
-            'status' => 'error',
-            'message' => 'Kartu tidak terdaftar'
-        ], 404);
+            'status'  => 'success',
+            'message' => 'Absensi tersimpan',
+            'nama'    => $pengguna->nama,
+            'data'    => $absensi,
+        ]);
     }
-
-    // ================= TAMBAHAN LOGIC =================
-    $now = now();
-
-    $jamTarget = $this->defaultJam[(string)$kategori] ?? null;
-    $absenMaks = null;
-
-    if ($jamTarget) {
-        $absenMaks = Carbon::parse(
-            $now->toDateString() . ' ' . $jamTarget
-        );
-    }
-    // ==================================================
-
-    $absensi = Absensi::create([
-        'nomor_induk' => $pengguna->nomor_induk,
-        'absen' => $now,
-        'absen_maks' => $absenMaks,
-        'kategori' => $kategori,
-        'idmesin' => $idmesin
-    ]);
-
-    return response()->json([
-        'status' => 'success',
-        'message' => 'Absensi tersimpan',
-        'data' => $absensi
-    ]);
-}
-
-
-        
-//     }
-//     public function storeFromMachine(Request $request)
-// {
-//     $tag = $request->query('tag');
-//     $idmesin = $request->query('idmesin');
-//     $kategori = $request->query('kategori');
-
-//     if (!$tag || !$kategori) {
-//         return response()->json([
-//             'status' => 'error',
-//             'message' => 'Parameter kurang'
-//         ], 400);
-//     }
-
-//     // cari pengguna berdasarkan RFID
-//     $pengguna = Pengguna::where('tag', $tag)->first();
-
-
-//     if (!$pengguna) {
-//         return response()->json([
-//             'status' => 'error',
-//             'message' => 'Kartu tidak terdaftar'
-//         ], 404);
-//     }
-
-//     $absensi = Absensi::create([
-//         'nomor_induk' => $pengguna->nomor_induk,
-//         'absen' => now(),
-//         'kategori' => $kategori,
-//         'idmesin' => $idmesin
-//     ]);
-
-//     return response()->json([
-//         'status' => 'success',
-//         'message' => 'Absensi tersimpan',
-//         'data' => $absensi
-//     ]);
-// }
 
     public function storeSiswa(Request $request)
     {
         $user = \Illuminate\Support\Facades\Auth::user();
-        $kategori = $request->input('kategori'); // 1 = masuk, 4 = pulang
+        $kategori = $request->input('kategori');
 
         if (!in_array($kategori, [1, 4])) {
             return back()->with('error', 'Kategori presensi tidak valid.');
@@ -278,8 +236,7 @@ class AbsensiController extends Controller
 
         $now = now();
         $today = $now->toDateString();
-        
-        // Cek apakah sudah absen hari ini untuk kategori yang sama
+
         $sudahAbsen = Absensi::where('nomor_induk', $user->nomor_induk)
             ->whereDate('absen', $today)
             ->where('kategori', $kategori)
@@ -290,23 +247,18 @@ class AbsensiController extends Controller
             return back()->with('error', "Anda sudah melakukan Absen $namaAksi hari ini.");
         }
 
-        // Logic batas absen 
-        $jamTarget = $this->defaultJam[(string)$kategori] ?? null;
-        $absenMaks = null;
-        if ($jamTarget) {
-            $absenMaks = Carbon::parse($today . ' ' . $jamTarget);
-        }
+        $jamTarget = $this->defaultJam[(string) $kategori] ?? null;
+        $absenMaks = $jamTarget ? Carbon::parse($today . ' ' . $jamTarget) : null;
 
         Absensi::create([
             'nomor_induk' => $user->nomor_induk,
-            'absen' => $now,
-            'absen_maks' => $absenMaks,
-            'kategori' => $kategori,
-            'idmesin' => null // presensi web
+            'absen'       => $now,
+            'absen_maks'  => $absenMaks,
+            'kategori'    => $kategori,
+            'idmesin'     => null,
         ]);
 
         $namaAksi = $kategori == 1 ? 'Masuk' : 'Pulang';
         return back()->with('success', "Absen $namaAksi berhasil disimpan!");
     }
-
 }

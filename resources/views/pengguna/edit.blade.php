@@ -73,13 +73,17 @@
                     </div>
 
                     <div class="field">
-                        <label for="jabatan_status">Jabatan</label>
+                        <label for="jabatan_status">Status Jabatan</label>
                         <div class="input-icon">
                             <i class="bi bi-briefcase"></i>
                             <select id="jabatan_status" name="jabatan_status"
                                 class="form-select @error('jabatan_status') is-invalid @enderror">
                                 @foreach ($jabatans as $j)
+                                    @php
+                                        $roleKey = str_replace(' ', '_', strtolower($j->hak ?? $j->jabatan_status));
+                                    @endphp
                                     <option value="{{ $j->id }}"
+                                        data-role="{{ $roleKey }}"
                                         {{ old('jabatan_status', $user->jabatan_status) == $j->id ? 'selected' : '' }}>
                                         {{ $j->jabatan_status }}
                                     </option>
@@ -106,8 +110,9 @@
                         @error('cabang_gedung') <div class="field-error">{{ $message }}</div> @enderror
                     </div>
 
-                    <div class="field md:col-span-2">
-                        <label for="tag">Tag <span class="opt">(opsional)</span></label>
+                    {{-- FIELD KHUSUS SISWA: TAG RFID --}}
+                    <div class="field md:col-span-2" id="field-tag-wrapper">
+                        <label for="tag">Tag Kartu RFID <span class="opt">(Khusus Siswa)</span></label>
                         <div class="input-icon">
                             <i class="bi bi-upc-scan"></i>
                             <input type="text" id="tag" name="tag"
@@ -115,6 +120,56 @@
                                 value="{{ old('tag', $user->tag) }}" placeholder="Kode kartu / tag pengguna">
                         </div>
                         @error('tag') <div class="field-error">{{ $message }}</div> @enderror
+                    </div>
+
+                    {{-- FIELD KHUSUS ORANG TUA: PILIH ANAK (SISWA) --}}
+                    <div class="field md:col-span-2" id="field-anak-wrapper" style="display:none;">
+                        <label class="font-semibold text-slate-700 mb-1 block">
+                            <i class="bi bi-people-fill text-indigo-600"></i> Pilih Siswa (Anak) yang Dipantau
+                        </label>
+                        <p class="text-xs text-slate-500 mb-2">Centang satu atau lebih siswa yang merupakan anak dari Orang Tua ini:</p>
+
+                        @php
+                            $checkedIds = old('siswa_ids', $selectedSiswaIds ?? []);
+                        @endphp
+
+                        <div class="border border-slate-200 rounded-xl p-3 bg-slate-50 max-h-52 overflow-y-auto space-y-2">
+                            @forelse ($siswaList as $siswa)
+                                <label class="flex items-center gap-3 p-2 rounded-lg bg-white border border-slate-200/80 hover:border-indigo-400 cursor-pointer transition">
+                                    <input type="checkbox" name="siswa_ids[]" value="{{ $siswa->nomor_induk }}"
+                                        class="w-4 h-4 text-indigo-600 rounded"
+                                        {{ in_array($siswa->nomor_induk, $checkedIds) ? 'checked' : '' }}>
+                                    <span class="text-sm font-semibold text-slate-700">{{ $siswa->nama }}</span>
+                                    <span class="text-xs text-slate-400 ml-auto">NIS: {{ $siswa->nomor_induk }}</span>
+                                </label>
+                            @empty
+                                <div class="text-sm text-amber-600 py-2">
+                                    <i class="bi bi-info-circle"></i> Belum ada data pengguna dengan jabatan <strong>Siswa</strong>.
+                                </div>
+                            @endforelse
+                        </div>
+                        @error('siswa_ids') <div class="field-error">{{ $message }}</div> @enderror
+                    </div>
+
+                    {{-- OPSIONAL UBAH PASSWORD --}}
+                    <div class="field">
+                        <label for="password">Password Baru <span class="opt">(Kosongkan jika tidak diubah)</span></label>
+                        <div class="input-icon">
+                            <i class="bi bi-lock"></i>
+                            <input type="password" id="password" name="password"
+                                class="form-control @error('password') is-invalid @enderror"
+                                placeholder="Minimal 8 karakter">
+                        </div>
+                        @error('password') <div class="field-error">{{ $message }}</div> @enderror
+                    </div>
+
+                    <div class="field">
+                        <label for="password_confirmation">Konfirmasi Password Baru</label>
+                        <div class="input-icon">
+                            <i class="bi bi-shield-check"></i>
+                            <input type="password" id="password_confirmation" name="password_confirmation"
+                                class="form-control" placeholder="Ulangi password baru">
+                        </div>
                     </div>
 
                 </div>
@@ -131,4 +186,36 @@
         </form>
     </div>
 </div>
+
+<script>
+    const jabatanSelect = document.getElementById('jabatan_status');
+    const tagWrapper = document.getElementById('field-tag-wrapper');
+    const tagInput = document.getElementById('tag');
+    const anakWrapper = document.getElementById('field-anak-wrapper');
+
+    function handleJabatanChange() {
+        const selectedOption = jabatanSelect.options[jabatanSelect.selectedIndex];
+        const role = selectedOption ? (selectedOption.getAttribute('data-role') || '') : '';
+        const val = jabatanSelect.value;
+
+        const isOrtu = role.includes('orang_tua') || role.includes('orang tua') || val === '4';
+        const isSiswa = role.includes('general') || role.includes('siswa') || val === '3';
+
+        if (isOrtu) {
+            tagWrapper.style.display = 'none';
+            tagInput.value = '';
+            anakWrapper.style.display = 'block';
+        } else if (isSiswa) {
+            tagWrapper.style.display = 'block';
+            anakWrapper.style.display = 'none';
+        } else {
+            tagWrapper.style.display = 'none';
+            tagInput.value = '';
+            anakWrapper.style.display = 'none';
+        }
+    }
+
+    jabatanSelect.addEventListener('change', handleJabatanChange);
+    handleJabatanChange();
+</script>
 @endsection
