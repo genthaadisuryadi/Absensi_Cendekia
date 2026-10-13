@@ -8,7 +8,10 @@
     $totalTelat   = array_sum($terlambat);
     $totalHadir   = $totalTepat + $totalTelat;
     $persenTepat  = $totalHadir > 0 ? round($totalTepat / $totalHadir * 100) : 0;
-    $namaDepan    = explode(' ', trim(auth()->user()->nama ?? auth()->user()->name ?? 'Pengguna'))[0];
+    
+    // Perbaikan nama sapaan: Ambil nama jabatan jika ada, jika tidak gunakan nama depan user.
+    $userJabatan = auth()->user()->jabatanStatus->jabatan_status ?? null;
+    $namaDepan = $userJabatan ?: explode(' ', trim(auth()->user()->nama ?? auth()->user()->name ?? 'Pengguna'))[0];
 
     // Ambil parameter dari URL, jika tidak ada gunakan bulan/tahun sekarang
     $selectedMonth = request('bulan', date('m'));
