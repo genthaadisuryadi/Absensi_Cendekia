@@ -17,7 +17,8 @@
                 </div>
             </div>
 
-            @if(in_array(auth()->user()->jabatanStatus?->hakAkses?->hak, ['orang tua', 'full']))
+            {{-- Tampilkan tombol tambah hanya untuk SuperAdmin dan Admin --}}
+            @if(in_array(strtolower(auth()->user()->jabatanStatus?->hakAkses?->hak), ['superadmin', 'admin', 'full']))
             <button type="button" id="btnTambah"
                 class="js-open-tambah inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-white font-bold text-sm cursor-pointer border-0"
                 style="background:linear-gradient(135deg,#4f46e5,#7c3aed);box-shadow:0 10px 20px -8px rgba(79,70,229,.65)">
@@ -59,7 +60,7 @@
                     <tr>
                         <th>Tanggal</th>
                         <th>Keterangan</th>
-                        @if(in_array(auth()->user()->jabatanStatus?->hakAkses?->hak, ['orang tua', 'full']))
+                        @if(in_array(strtolower(auth()->user()->jabatanStatus?->hakAkses?->hak), ['superadmin', 'admin', 'full']))
                         <th class="text-center">Aksi</th>
                         @endif
                     </tr>
@@ -75,7 +76,7 @@
                                 </span>
                             </td>
                             <td>{{ $row->keterangan ?: '-' }}</td>
-                            @if(in_array(auth()->user()->jabatanStatus?->hakAkses?->hak, ['orang tua', 'full']))
+                            @if(in_array(strtolower(auth()->user()->jabatanStatus?->hakAkses?->hak), ['superadmin', 'admin', 'full']))
                             <td class="text-center">
                                 <div class="flex justify-center gap-2">
 
@@ -110,20 +111,21 @@
             </table>
         </div>
 
-        {{-- MODAL TAMBAH & EDIT (file terpisah) --}}
-        @if(in_array(auth()->user()->jabatanStatus?->hakAkses?->hak, ['orang tua', 'full']))
-        @include('libur_khusus.create')
-        @include('libur_khusus.edit')
+        {{-- MODAL TAMBAH & EDIT --}}
+        @if(in_array(strtolower(auth()->user()->jabatanStatus?->hakAkses?->hak), ['superadmin', 'admin', 'full']))
+            @include('libur_khusus.create')
+            @include('libur_khusus.edit')
         @endif
 
     </div>
 @endsection
 
-{{-- Dimuat setelah jQuery & DataTables dari layout --}}
 @push('scripts')
     <script>
         $(function() {
-            var isAdmin = {{ in_array(auth()->user()->jabatanStatus?->hakAkses?->hak, ['orang tua', 'full']) ? 'true' : 'false' }};
+            var userRole = "{{ strtolower(auth()->user()->jabatanStatus?->hakAkses?->hak) }}";
+            var isAdmin = ['superadmin', 'admin', 'full'].includes(userRole);
+            
             var colDefs = [];
             if (isAdmin) {
                 colDefs.push({ targets: 2, orderable: false });
@@ -147,6 +149,11 @@
             });
         });
 
+        /* ===== BUKA MODAL TAMBAH ===== */
+        $(document).on('click', '#btnTambah', function() {
+            $('#modalTambah').removeClass('hidden').addClass('flex');
+        });
+
         /* ===== BUKA MODAL EDIT ===== */
         $(document).on('click', '.btn-edit', function() {
             $('#formEdit').attr('action', $(this).data('action'));
@@ -156,9 +163,10 @@
             $('#modalEdit').removeClass('hidden').addClass('flex');
         });
 
-        /* ===== TUTUP MODAL EDIT ===== */
-        $(document).on('click', '#closeModal', function() {
+        /* ===== TUTUP MODAL ===== */
+        $(document).on('click', '#closeModal, #closeModalTambah, .btn-batal-modal', function() {
             $('#modalEdit').addClass('hidden').removeClass('flex');
+            $('#modalTambah').addClass('hidden').removeClass('flex');
         });
     </script>
 @endpush
