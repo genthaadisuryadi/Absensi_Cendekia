@@ -7,102 +7,106 @@
 
     @push('styles')
         <style>
-            .dataTables_wrapper {
-                padding: 1rem;
-            }
-
-            .dataTables_filter,
-            .dt-buttons {
-                margin-bottom: 1rem;
-            }
-
-            .dataTables_info,
-            .dataTables_paginate {
-                margin-top: 1rem;
-            }
-
-            table.dataTable {
-                margin-top: 0.75rem !important;
-                margin-bottom: 0.75rem !important;
-            }
+            .dataTables_wrapper { padding: 1rem; }
+            .dataTables_filter, .dt-buttons { margin-bottom: 1rem; }
+            .dataTables_info, .dataTables_paginate { margin-top: 1rem; }
+            table.dataTable { margin-top: 0.75rem !important; margin-bottom: 0.75rem !important; }
         </style>
     @endpush
 
-
     <div class="p-6 space-y-6">
 
-        {{-- ================= HEADER ================= --}}
-        <div class="flex items-center justify-between">
-            <h1 class="text-2xl font-semibold text-gray-800">Pengguna</h1>
+        {{-- ================= ALERT PESAN ================= --}}
+        @if(session('successAdd') || session('successEdit') || session('successDelete'))
+            <div class="p-4 mb-4 text-sm text-green-800 rounded-lg bg-green-50 border border-green-200">
+                <span class="font-medium">Berhasil!</span> Aksi pada data pengguna sukses dilakukan.
+            </div>
+        @endif
+        @if($errors->any())
+            <div class="p-4 mb-4 text-sm text-red-800 rounded-lg bg-red-50 border border-red-200">
+                <span class="font-medium">Gagal!</span> {{ $errors->first() }}
+            </div>
+        @endif
 
-            <div class="flex gap-2">
+        {{-- ================= HEADER ================= --}}
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <h1 class="text-2xl font-semibold text-gray-800">Kelola Pengguna</h1>
+
+            <div class="flex flex-wrap items-center gap-2">
+                <!-- Tombol Import Excel -->
+                <button type="button" onclick="document.getElementById('modalImport').classList.remove('hidden')"
+                    class="inline-flex items-center gap-2 px-4 py-2 bg-emerald-500 text-white text-sm font-medium rounded-lg hover:bg-emerald-600 shadow-sm transition">
+                    <i class="bi bi-file-earmark-excel"></i> Import Siswa
+                </button>
+                
+                <!-- Tombol Cek Pengguna (Mesin RFID) -->
                 <a href="{{ url('pengguna/scan') }}" target="_blank"
-                    class="inline-flex items-center gap-2 px-4 py-2 border border-blue-600 text-blue-600 rounded-lg hover:bg-blue-50">
-                    <i class="bi bi-upc-scan"></i> Cek Pengguna
+                    class="inline-flex items-center gap-2 px-4 py-2 border border-blue-600 text-blue-600 text-sm font-medium rounded-lg hover:bg-blue-50 transition">
+                    <i class="bi bi-upc-scan"></i> Cek Kartu
                 </a>
 
-                <div class="flex gap-2">
-    <!-- Tombol Import -->
-    <button type="button" class="btn btn-outline-primary" onclick="document.getElementById('modalImport').classList.remove('hidden')">
-        <i class="bi bi-file-earmark-excel"></i> Import Siswa
-    </button>
-    <a href="{{ route('pengguna.create') }}" class="btn btn-primary">
-        <i class="bi bi-plus-lg"></i> Tambah Pengguna
-    </a>
-</div>
+                <!-- Tombol Tambah Manual -->
+                <a href="{{ route('pengguna.create') }}" 
+                    class="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 shadow-sm transition">
+                    <i class="bi bi-plus-lg"></i> Tambah Pengguna
+                </a>
             </div>
         </div>
 
         {{-- ================= TABLE ================= --}}
-        <div class="bg-white rounded-xl shadow-lg border border-gray-200 overflow-visible mb-12 p-6">
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-visible mb-12 p-6">
             <table id="penggunaTable" class="w-full text-sm border-collapse">
-                <thead class="bg-gray-100 text-gray-600 uppercase text-xs">
+                <thead class="bg-gray-50 text-gray-600 uppercase text-[11px] font-bold tracking-wider">
                     <tr>
-                        <th>Nomor Induk</th>
-                        <th>Nama</th>
-                        <th>Jabatan</th>
-                        <th>Lokasi</th>
-                        <th class="text-center">Status</th>
-                        <th class="text-center">Aksi</th>
+                        <th class="py-3">NIS / NIP</th>
+                        <th class="py-3">Nama</th>
+                        <th class="py-3">Kelas</th>
+                        <th class="py-3">Jabatan</th>
+                        <th class="py-3">Lokasi</th>
+                        <th class="py-3 text-center">Status</th>
+                        <th class="py-3 text-center">Aksi</th>
                     </tr>
                 </thead>
 
-                <tbody class="divide-y">
+                <tbody class="divide-y divide-gray-100">
                     @foreach ($pengguna as $data)
                         @continue($data->nomor_induk == 0)
 
-                        <tr class="hover:bg-gray-50">
-                            <td>{{ $data->nomor_induk }}</td>
+                        <tr class="hover:bg-indigo-50/30 transition">
+                            <td class="py-3">{{ $data->nomor_induk }}</td>
 
-                            <td>
+                            <td class="py-3 font-semibold text-slate-700">
                                 <a href="{{ route('absensi.pengguna', $data->nomor_induk) }}"
-                                    class="text-blue-600 hover:underline">
+                                    class="text-indigo-600 hover:text-indigo-800 hover:underline">
                                     {{ $data->nama }}
                                 </a>
                             </td>
 
-                            <td>{{ $data->jabatan_status ?? '-' }}</td>
-                            <td>{{ $data->lokasi ?? '-' }}</td>
+                            <td class="py-3">{{ $data->kelas ?? '-' }}</td>
+                            <td class="py-3">
+                                <span class="px-2.5 py-1 bg-slate-100 text-slate-600 rounded-md text-xs font-medium border border-slate-200">
+                                    {{ $data->jabatan_status ?? '-' }}
+                                </span>
+                            </td>
+                            <td class="py-3 text-slate-600">{{ $data->lokasi ?? '-' }}</td>
 
-                            <td class="text-center">
-                                <span
-                                    class="px-3 py-1 text-xs rounded-full
-                                {{ $data->aktif ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700' }}">
+                            <td class="py-3 text-center">
+                                <span class="px-3 py-1 text-[11px] font-bold rounded-full {{ $data->aktif ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' : 'bg-rose-100 text-rose-700 border border-rose-200' }}">
                                     {{ $data->aktif ? 'Aktif' : 'Nonaktif' }}
                                 </span>
                             </td>
 
-                            <td class="text-center space-x-2">
+                            <td class="py-3 text-center space-x-2 whitespace-nowrap">
                                 <a href="{{ route('pengguna.edit', $data->nomor_induk) }}"
-                                    class="px-3 py-1 border border-yellow-400 text-yellow-600 rounded hover:bg-yellow-50">
-                                    <i class="bi bi-pencil"></i>
+                                    class="inline-flex px-3 py-1.5 border border-amber-400 text-amber-600 rounded-md hover:bg-amber-50 transition" title="Edit">
+                                    <i class="bi bi-pencil-square"></i>
                                 </a>
 
                                 <form action="{{ route('pengguna.destroy', $data->nomor_induk) }}" method="POST"
-                                    class="inline" onsubmit="return confirm('Yakin ingin menghapus?')">
+                                    class="inline" onsubmit="return confirm('Yakin ingin menghapus pengguna ini beserta seluruh data absensinya?')">
                                     @csrf
                                     @method('DELETE')
-                                    <button class="px-3 py-1 border border-red-400 text-red-600 rounded hover:bg-red-50">
+                                    <button class="inline-flex px-3 py-1.5 border border-rose-400 text-rose-600 rounded-md hover:bg-rose-50 transition" title="Hapus">
                                         <i class="bi bi-trash"></i>
                                     </button>
                                 </form>
@@ -111,6 +115,45 @@
                     @endforeach
                 </tbody>
             </table>
+        </div>
+    </div>
+
+    {{-- ================= MODAL IMPORT EXCEL ================= --}}
+    <div id="modalImport" class="fixed inset-0 z-[100] hidden">
+        <!-- Backdrop -->
+        <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" onclick="document.getElementById('modalImport').classList.add('hidden')"></div>
+        
+        <!-- Modal Dialog -->
+        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden p-6 transform transition-all">
+            <div class="flex items-center justify-between mb-4 border-b border-slate-100 pb-3">
+                <h3 class="text-lg font-bold text-slate-800"><i class="bi bi-cloud-arrow-up-fill text-indigo-500 mr-2"></i> Import Data Siswa</h3>
+                <button type="button" onclick="document.getElementById('modalImport').classList.add('hidden')" class="text-slate-400 hover:text-rose-500 transition">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+
+            <form action="{{ route('pengguna.import') }}" method="POST" enctype="multipart/form-data">
+                @csrf
+                <div class="mb-4">
+                    <label class="block text-sm font-semibold text-slate-700 mb-2">Pilih File Excel / CSV</label>
+                    <input type="file" name="file_excel" accept=".xlsx, .xls, .csv" required
+                        class="block w-full text-sm text-slate-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 border border-slate-200 rounded-xl cursor-pointer">
+                    
+                    <div class="mt-4 p-3 bg-slate-50 border border-slate-200 rounded-xl">
+                        <p class="text-[11px] text-slate-600 leading-relaxed">
+                            Gunakan header berikut pada baris pertama file Excel Anda (huruf kecil semua):
+                            <br><code class="text-indigo-600 font-bold tracking-wider mt-1 block">nis, nama, kelas, tag_rfid, id_cabang</code>
+                        </p>
+                    </div>
+                </div>
+                
+                <div class="flex justify-end gap-2 mt-6 pt-4 border-t border-slate-100">
+                    <button type="button" onclick="document.getElementById('modalImport').classList.add('hidden')" class="px-5 py-2 text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition">Batal</button>
+                    <button type="submit" class="px-5 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-md shadow-indigo-200 transition">
+                        <i class="bi bi-upload mr-1"></i> Upload
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 
@@ -125,74 +168,26 @@
     <script>
         $(function() {
             $('#penggunaTable').DataTable({
-                pageLength: 8,
+                pageLength: 10,
                 responsive: true,
                 dom: 'Bfrtip',
-                buttons: [{
-                        extend: 'copy',
-                        title: 'Data Pengguna'
-                    },
-                    {
-                        extend: 'excel',
-                        title: 'Data Pengguna',
-                        filename: 'data_pengguna'
-                    },
-                    {
-                        extend: 'pdf',
-                        title: 'Data Pengguna',
-                        filename: 'data_pengguna'
-                    },
-                    {
-                        extend: 'print',
-                        title: 'Data Pengguna'
-                    },
+                buttons: [
+                    { extend: 'copy', title: 'Data Pengguna' },
+                    { extend: 'excel', title: 'Data Pengguna', filename: 'data_pengguna' },
+                    { extend: 'pdf', title: 'Data Pengguna', filename: 'data_pengguna' },
+                    { extend: 'print', title: 'Data Pengguna' },
                     'colvis'
                 ],
                 language: {
-                    search: "Cari:",
+                    search: "Cari data:",
                     lengthMenu: "Tampilkan _MENU_ data",
                     info: "Menampilkan _START_ - _END_ dari _TOTAL_ data",
                     paginate: {
-                        previous: "‹",
-                        next: "›"
+                        previous: "Sebelumnya",
+                        next: "Selanjutnya"
                     }
                 }
             });
         });
-
-        <!-- Modal Import Excel -->
-<div id="modalImport" class="fixed inset-0 z-[100] hidden">
-    <!-- Backdrop -->
-    <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onclick="document.getElementById('modalImport').classList.add('hidden')"></div>
-    
-    <!-- Modal Dialog -->
-    <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden p-6">
-        <div class="flex items-center justify-between mb-4">
-            <h3 class="text-lg font-bold text-slate-800">Import Data Siswa</h3>
-            <button type="button" onclick="document.getElementById('modalImport').classList.add('hidden')" class="text-slate-400 hover:text-rose-500">
-                <i class="bi bi-x-lg"></i>
-            </button>
-        </div>
-
-        <form action="{{ route('pengguna.import') }}" method="POST" enctype="multipart/form-data">
-            @csrf
-            <div class="mb-4">
-                <label class="block text-sm font-medium text-slate-700 mb-2">Pilih File Excel/CSV</label>
-                <input type="file" name="file_excel" accept=".xlsx, .xls, .csv" required
-                    class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
-                <p class="text-xs text-slate-500 mt-2">
-                    Gunakan header: <strong>nis, nama, kelas, tag_rfid, id_cabang</strong> pada baris pertama file Excel Anda.
-                </p>
-            </div>
-            
-            <div class="flex justify-end gap-2 mt-6">
-                <button type="button" onclick="document.getElementById('modalImport').classList.add('hidden')" class="px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg">Batal</button>
-                <button type="submit" class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg">
-                    <i class="bi bi-cloud-upload mr-1"></i> Upload & Import
-                </button>
-            </div>
-        </form>
-    </div>
-</div>
     </script>
 @endsection
