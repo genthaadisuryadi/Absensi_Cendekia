@@ -28,7 +28,7 @@
             'action'      => route('mesin.store'),
             'method'      => 'POST',
             'mesin'       => null,
-            'cabang'      => $cabang,
+            'cabang'      => $cabangs,
             'submitLabel' => 'Simpan Mesin',
         ])
     </div>

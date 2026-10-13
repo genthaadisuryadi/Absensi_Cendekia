@@ -28,7 +28,7 @@
             'action'      => route('mesin.update', $mesin->idmesin),
             'method'      => 'PUT',
             'mesin'       => $mesin,
-            'cabang'      => $cabang,
+            'cabang'      => $cabangs,
             'submitLabel' => 'Simpan Perubahan',
         ])
     </div>
