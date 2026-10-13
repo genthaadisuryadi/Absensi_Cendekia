@@ -94,7 +94,7 @@ table.dataTable {
                                         <span class="bg-green-600 text-white px-3 py-1 rounded-full">Masuk</span>
                                         @break
                                     @case(2)
-                                        <span class="bg-yellow-500 text-black px-3 py-1 rounded-full">Mulai</span>
+                                        <span class="bg-yellow-500 text-black px-3 py-1 rounded-full">Istirahat</span>
                                         @break
                                     @case(3)
                                         <span class="bg-blue-500 text-white px-3 py-1 rounded-full">Selesai</span>
