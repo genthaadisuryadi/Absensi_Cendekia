@@ -23,9 +23,9 @@ class MesinController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'idmesin'       => 'required|unique:mesin,idmesin',
-            'cabang_gedung' => 'required|exists:cabang_gedung,id',
-            'keterangan'    => 'nullable|string'
+            'idmesin'          => 'required|unique:mesin,idmesin',
+            'id_cabang_gedung' => 'required|exists:cabang_gedung,id',
+            'keterangan'       => 'nullable|string'
         ]);
 
         Mesin::create($request->all());
@@ -44,15 +44,14 @@ class MesinController extends Controller
         $mesin = Mesin::where('idmesin', $idmesin)->firstOrFail();
 
         $request->validate([
-            'cabang_gedung' => 'required|exists:cabang_gedung,id',
-            'keterangan'    => 'nullable|string'
+            'id_cabang_gedung' => 'required|exists:cabang_gedung,id',
+            'keterangan'       => 'nullable|string'
         ]);
 
-        $mesin->update($request->only(['cabang_gedung', 'keterangan']));
+        $mesin->update($request->only(['id_cabang_gedung', 'keterangan']));
         return redirect()->route('mesin.index')->with('success', 'Data mesin berhasil diperbarui.');
     }
 
-    // ====== FUNGSI HAPUS MESIN ======
     public function destroy($idmesin)
     {
         try {

@@ -20,21 +20,21 @@
         </div>
 
         <div class="field">
-            <label for="cabang_gedung">Cabang Gedung</label>
+            <label for="id_cabang_gedung">Cabang Gedung</label>
             <div class="input-icon">
                 <i class="bi bi-geo-alt"></i>
-                <select id="cabang_gedung" name="cabang_gedung"
-                    class="form-select @error('cabang_gedung') is-invalid @enderror" required>
+                <select id="id_cabang_gedung" name="id_cabang_gedung"
+                    class="form-select @error('id_cabang_gedung') is-invalid @enderror" required>
                     <option value="">-- Pilih Cabang --</option>
                     @foreach ($cabangs ?? $cabang as $c)
                         <option value="{{ $c->id }}"
-                            {{ (string) old('cabang_gedung', $mesin->cabang_gedung ?? '') === (string) $c->id ? 'selected' : '' }}>
+                            {{ (string) old('id_cabang_gedung', $mesin->id_cabang_gedung ?? '') === (string) $c->id ? 'selected' : '' }}>
                             {{ $c->lokasi }}
                         </option>
                     @endforeach
                 </select>
             </div>
-            @error('cabang_gedung') <div class="field-error">{{ $message }}</div> @enderror
+            @error('id_cabang_gedung') <div class="field-error">{{ $message }}</div> @enderror
         </div>
 
         <div class="field">
