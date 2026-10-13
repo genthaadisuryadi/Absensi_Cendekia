@@ -36,7 +36,7 @@ class PenggunaController extends Controller
 
         $lokasis = DB::table('cabang_gedung')->get();
 
-        // Ambil daftar pengguna dengan role Siswa (hak_akses = 3 / general) untuk dipilih oleh Orang Tua
+        // Ambil daftar pengguna dengan role Siswa untuk dipilih oleh Orang Tua
         $siswaList = DB::table('pengguna')
             ->join('jabatan_status', 'pengguna.jabatan_status', '=', 'jabatan_status.id')
             ->join('hak_akses', 'jabatan_status.hak_akses', '=', 'hak_akses.id')
@@ -52,7 +52,6 @@ class PenggunaController extends Controller
     // ====== STORE ======
     public function store(Request $request)
     {
-        // Cek hak akses dari jabatan yang dipilih
         $hakAkses = DB::table('jabatan_status')
             ->join('hak_akses', 'jabatan_status.hak_akses', '=', 'hak_akses.id')
             ->where('jabatan_status.id', $request->jabatan_status)
@@ -62,14 +61,22 @@ class PenggunaController extends Controller
         $isSiswa = in_array($roleNormalized, ['general', 'siswa'], true) || (int) $request->jabatan_status === 3;
         $isOrtu  = in_array($roleNormalized, ['orang_tua'], true) || (int) $request->jabatan_status === 4;
 
-        // Hanya Siswa yang boleh memiliki Tag RFID
-        $tagValue = $isSiswa && $request->filled('tag') ? trim($request->tag) : null;
-        $request->merge(['tag' => $tagValue]);
+        // Jika Orang Tua, buat nomor_induk otomatis di belakang layar karena tidak diinputkan
+        if ($isOrtu && !$request->filled('nomor_induk')) {
+            do {
+                $generatedId = (string) random_int(800000, 899999);
+            } while (DB::table('pengguna')->where('nomor_induk', $generatedId)->exists());
+
+            $request->merge(['nomor_induk' => $generatedId]);
+        }
+
+        // Kolom 'tag' di MySQL bersifat NOT NULL, isi '' jika bukan Siswa atau kosong
+        $tagValue = ($isSiswa && $request->filled('tag')) ? trim($request->tag) : '';
 
         $request->validate([
             'nomor_induk'    => 'required|unique:pengguna,nomor_induk',
             'nama'           => 'required|string|max:255',
-            'tag'            => 'nullable|unique:pengguna,tag',
+            'tag'            => $tagValue !== '' ? ['nullable', Rule::unique('pengguna', 'tag')] : ['nullable'],
             'jabatan_status' => 'required|exists:jabatan_status,id',
             'cabang_gedung'  => 'required|exists:cabang_gedung,id',
             'password'       => 'required|min:8|confirmed',
@@ -90,7 +97,6 @@ class PenggunaController extends Controller
             'aktif'          => 1,
         ]);
 
-        // Simpan relasi anak jika role adalah Orang Tua
         if ($isOrtu && $request->filled('siswa_ids')) {
             $pengguna->anak()->sync($request->siswa_ids);
         }
@@ -113,7 +119,6 @@ class PenggunaController extends Controller
 
         $lokasis = DB::table('cabang_gedung')->get();
 
-        // Daftar semua siswa
         $siswaList = DB::table('pengguna')
             ->join('jabatan_status', 'pengguna.jabatan_status', '=', 'jabatan_status.id')
             ->join('hak_akses', 'jabatan_status.hak_akses', '=', 'hak_akses.id')
@@ -126,7 +131,6 @@ class PenggunaController extends Controller
             ->orderBy('pengguna.nama')
             ->get();
 
-        // Daftar nomor_induk anak yang sudah terhubung dengan akun orang tua ini
         $selectedSiswaIds = DB::table('orang_tua_siswa')
             ->where('orang_tua_id', $user->nomor_induk)
             ->pluck('siswa_id')
@@ -149,14 +153,18 @@ class PenggunaController extends Controller
         $isSiswa = in_array($roleNormalized, ['general', 'siswa'], true) || (int) $request->jabatan_status === 3;
         $isOrtu  = in_array($roleNormalized, ['orang_tua'], true) || (int) $request->jabatan_status === 4;
 
-        // Kosongkan Tag RFID jika bukan Siswa
-        $tagValue = $isSiswa && $request->filled('tag') ? trim($request->tag) : null;
-        $request->merge(['tag' => $tagValue]);
+        // Jika Orang Tua, pertahankan nomor_induk yang sudah ada tanpa perlu input dari form
+        if ($isOrtu || !$request->filled('nomor_induk')) {
+            $request->merge(['nomor_induk' => $user->nomor_induk]);
+        }
+
+        // Kolom 'tag' di MySQL bersifat NOT NULL, isi '' jika bukan Siswa atau kosong
+        $tagValue = ($isSiswa && $request->filled('tag')) ? trim($request->tag) : '';
 
         $request->validate([
             'nomor_induk'    => ['required', Rule::unique('pengguna', 'nomor_induk')->ignore($user->nomor_induk, 'nomor_induk')],
             'nama'           => 'required|string|max:255',
-            'tag'            => ['nullable', Rule::unique('pengguna', 'tag')->ignore($user->nomor_induk, 'nomor_induk')],
+            'tag'            => $tagValue !== '' ? ['nullable', Rule::unique('pengguna', 'tag')->ignore($user->nomor_induk, 'nomor_induk')] : ['nullable'],
             'jabatan_status' => 'required|exists:jabatan_status,id',
             'cabang_gedung'  => 'required|exists:cabang_gedung,id',
             'password'       => 'nullable|min:8|confirmed',

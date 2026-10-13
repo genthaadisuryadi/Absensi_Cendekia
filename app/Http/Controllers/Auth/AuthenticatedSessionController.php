@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use App\Http\Requests\Auth\LoginRequest;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 class AuthenticatedSessionController extends Controller
@@ -23,33 +24,34 @@ class AuthenticatedSessionController extends Controller
     /**
      * Handle an incoming authentication request.
      */
-
     public function store(LoginRequest $request): RedirectResponse
     {
-
-        $nomor_induk = $request->nomor_induk;
+        $loginInput = trim($request->nomor_induk);
         $password = $request->password;
 
-        $user = \App\Models\User::where('nomor_induk', $nomor_induk)->first();
+        // Bisa login menggunakan Nomor Induk ATAU Nama Lengkap (memudahkan Orang Tua)
+        $user = \App\Models\User::where('nomor_induk', $loginInput)
+            ->orWhereRaw('LOWER(nama) = ?', [strtolower($loginInput)])
+            ->first();
 
         if ($user && Hash::check($password, $user->password)) {
-
-            // Login user ke dalam session
             Auth::login($user);
-            
             $request->session()->regenerate();
 
-            if ($user->jabatan_status == 4) {
+            $hakAkses = DB::table('jabatan_status')
+                ->where('id', $user->jabatan_status)
+                ->value('hak_akses');
+
+            if ((int) $user->jabatan_status === 4 || (int) $hakAkses === 4) {
                 return redirect()->route('dashboard.ortu');
             }
 
             return redirect()->route('dashboard.index');
         }
 
-        // 4. Jika gagal (user tidak ditemukan atau password salah)
         return back()->withErrors([
-            'nomor_induk' => 'Nomor Induk atau Password salah.',
-        ])->onlyInput('nomor_induk'); // Mengembalikan input nomor_induk agar tidak perlu ngetik ulang
+            'nomor_induk' => 'Nomor Induk / Nama atau Password salah.',
+        ])->onlyInput('nomor_induk');
     }
 
     /**

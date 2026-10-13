@@ -48,28 +48,6 @@
                 </div>
 
                 <div class="field">
-                    <label for="nomor_induk">Nomor Induk (NIS / NIP / ID Login)</label>
-                    <div class="input-icon">
-                        <i class="bi bi-person-badge"></i>
-                        <input type="text" id="nomor_induk" name="nomor_induk"
-                            class="form-control @error('nomor_induk') is-invalid @enderror"
-                            value="{{ old('nomor_induk') }}" placeholder="Contoh: 12300000" required>
-                    </div>
-                    @error('nomor_induk') <div class="field-error">{{ $message }}</div> @enderror
-                </div>
-
-                <div class="field">
-                    <label for="nama">Nama Lengkap</label>
-                    <div class="input-icon">
-                        <i class="bi bi-person"></i>
-                        <input type="text" id="nama" name="nama"
-                            class="form-control @error('nama') is-invalid @enderror"
-                            value="{{ old('nama') }}" placeholder="Nama lengkap" required>
-                    </div>
-                    @error('nama') <div class="field-error">{{ $message }}</div> @enderror
-                </div>
-
-                <div class="field">
                     <label for="jabatan_status">Status Jabatan</label>
                     <div class="input-icon">
                         <i class="bi bi-briefcase"></i>
@@ -89,6 +67,28 @@
                         </select>
                     </div>
                     @error('jabatan_status') <div class="field-error">{{ $message }}</div> @enderror
+                </div>
+
+                <div class="field" id="field-nomor-induk-wrapper">
+                    <label for="nomor_induk">Nomor Induk (NIS / NIP)</label>
+                    <div class="input-icon">
+                        <i class="bi bi-person-badge"></i>
+                        <input type="text" id="nomor_induk" name="nomor_induk"
+                            class="form-control @error('nomor_induk') is-invalid @enderror"
+                            value="{{ old('nomor_induk') }}" placeholder="Contoh: 12300000" required>
+                    </div>
+                    @error('nomor_induk') <div class="field-error">{{ $message }}</div> @enderror
+                </div>
+
+                <div class="field">
+                    <label for="nama">Nama Lengkap</label>
+                    <div class="input-icon">
+                        <i class="bi bi-person"></i>
+                        <input type="text" id="nama" name="nama"
+                            class="form-control @error('nama') is-invalid @enderror"
+                            value="{{ old('nama') }}" placeholder="Nama lengkap" required>
+                    </div>
+                    @error('nama') <div class="field-error">{{ $message }}</div> @enderror
                 </div>
 
                 <div class="field">
@@ -195,7 +195,6 @@
 </div>
 
 <script>
-    // Toggle lihat password
     document.querySelectorAll('.pw-toggle').forEach(btn => {
         btn.addEventListener('click', () => {
             const input = document.getElementById(btn.dataset.target);
@@ -206,8 +205,9 @@
         });
     });
 
-    // Tampilkan/sembunyikan field Tag & Pilih Anak sesuai Status Jabatan
     const jabatanSelect = document.getElementById('jabatan_status');
+    const nomorIndukWrapper = document.getElementById('field-nomor-induk-wrapper');
+    const nomorIndukInput = document.getElementById('nomor_induk');
     const tagWrapper = document.getElementById('field-tag-wrapper');
     const tagInput = document.getElementById('tag');
     const anakWrapper = document.getElementById('field-anak-wrapper');
@@ -221,14 +221,26 @@
         const isSiswa = role.includes('general') || role.includes('siswa') || val === '3';
 
         if (isOrtu) {
+            // Sembunyikan Nomor Induk & Tag RFID untuk Orang Tua
+            nomorIndukWrapper.style.display = 'none';
+            nomorIndukInput.removeAttribute('required');
+            nomorIndukInput.value = '';
+
             tagWrapper.style.display = 'none';
             tagInput.value = '';
+
             anakWrapper.style.display = 'block';
         } else if (isSiswa) {
+            nomorIndukWrapper.style.display = 'block';
+            nomorIndukInput.setAttribute('required', 'required');
+
             tagWrapper.style.display = 'block';
             anakWrapper.style.display = 'none';
         } else {
             // Admin / SuperAdmin
+            nomorIndukWrapper.style.display = 'block';
+            nomorIndukInput.setAttribute('required', 'required');
+
             tagWrapper.style.display = 'none';
             tagInput.value = '';
             anakWrapper.style.display = 'none';

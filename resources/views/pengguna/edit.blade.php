@@ -38,7 +38,7 @@
             <div class="min-w-0">
                 <div class="text-lg font-extrabold truncate">{{ $user->nama }}</div>
                 <div class="text-sm" style="color:#e0e7ff">
-                    <i class="bi bi-person-badge"></i> No. Induk {{ $user->nomor_induk }}
+                    <i class="bi bi-person-check"></i> Data Profil Pengguna
                 </div>
             </div>
         </div>
@@ -49,28 +49,6 @@
 
             <div class="card-body" style="padding:1.5rem">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-x-5">
-
-                    <div class="field">
-                        <label for="nomor_induk">Nomor Induk</label>
-                        <div class="input-icon">
-                            <i class="bi bi-person-badge"></i>
-                            <input type="text" id="nomor_induk" name="nomor_induk"
-                                class="form-control @error('nomor_induk') is-invalid @enderror"
-                                value="{{ old('nomor_induk', $user->nomor_induk) }}" required>
-                        </div>
-                        @error('nomor_induk') <div class="field-error">{{ $message }}</div> @enderror
-                    </div>
-
-                    <div class="field">
-                        <label for="nama">Nama Lengkap</label>
-                        <div class="input-icon">
-                            <i class="bi bi-person"></i>
-                            <input type="text" id="nama" name="nama"
-                                class="form-control @error('nama') is-invalid @enderror"
-                                value="{{ old('nama', $user->nama) }}" required>
-                        </div>
-                        @error('nama') <div class="field-error">{{ $message }}</div> @enderror
-                    </div>
 
                     <div class="field">
                         <label for="jabatan_status">Status Jabatan</label>
@@ -91,6 +69,28 @@
                             </select>
                         </div>
                         @error('jabatan_status') <div class="field-error">{{ $message }}</div> @enderror
+                    </div>
+
+                    <div class="field" id="field-nomor-induk-wrapper">
+                        <label for="nomor_induk">Nomor Induk</label>
+                        <div class="input-icon">
+                            <i class="bi bi-person-badge"></i>
+                            <input type="text" id="nomor_induk" name="nomor_induk"
+                                class="form-control @error('nomor_induk') is-invalid @enderror"
+                                value="{{ old('nomor_induk', $user->nomor_induk) }}" required>
+                        </div>
+                        @error('nomor_induk') <div class="field-error">{{ $message }}</div> @enderror
+                    </div>
+
+                    <div class="field">
+                        <label for="nama">Nama Lengkap</label>
+                        <div class="input-icon">
+                            <i class="bi bi-person"></i>
+                            <input type="text" id="nama" name="nama"
+                                class="form-control @error('nama') is-invalid @enderror"
+                                value="{{ old('nama', $user->nama) }}" required>
+                        </div>
+                        @error('nama') <div class="field-error">{{ $message }}</div> @enderror
                     </div>
 
                     <div class="field">
@@ -189,6 +189,8 @@
 
 <script>
     const jabatanSelect = document.getElementById('jabatan_status');
+    const nomorIndukWrapper = document.getElementById('field-nomor-induk-wrapper');
+    const nomorIndukInput = document.getElementById('nomor_induk');
     const tagWrapper = document.getElementById('field-tag-wrapper');
     const tagInput = document.getElementById('tag');
     const anakWrapper = document.getElementById('field-anak-wrapper');
@@ -202,13 +204,23 @@
         const isSiswa = role.includes('general') || role.includes('siswa') || val === '3';
 
         if (isOrtu) {
+            nomorIndukWrapper.style.display = 'none';
+            nomorIndukInput.removeAttribute('required');
+
             tagWrapper.style.display = 'none';
             tagInput.value = '';
+
             anakWrapper.style.display = 'block';
         } else if (isSiswa) {
+            nomorIndukWrapper.style.display = 'block';
+            nomorIndukInput.setAttribute('required', 'required');
+
             tagWrapper.style.display = 'block';
             anakWrapper.style.display = 'none';
         } else {
+            nomorIndukWrapper.style.display = 'block';
+            nomorIndukInput.setAttribute('required', 'required');
+
             tagWrapper.style.display = 'none';
             tagInput.value = '';
             anakWrapper.style.display = 'none';
