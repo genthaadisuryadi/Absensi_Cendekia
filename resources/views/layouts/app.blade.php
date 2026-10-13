@@ -44,9 +44,14 @@
     $user = auth()->user();
     $jabatanStatus = $user?->jabatanStatus;
     $hakAkses = $jabatanStatus?->hakAkses;
-    $userRole = $hakAkses?->hak;
-    $isAdmin = in_array($userRole, ['orang tua', 'full']);
-    $isGeneral = $userRole === 'general';
+
+    // Normalisasi nama role (huruf kecil & ubah spasi jadi underscore)
+    $userRole = str_replace(' ', '_', strtolower(trim($hakAkses?->hak ?? '')));
+
+    // Role SuperAdmin & Admin mendapatkan akses penuh ke menu Manajemen & Pengaturan
+    $isAdmin = in_array($userRole, ['superadmin', 'admin', 'nusabot', 'full'], true);
+    $isGeneral = in_array($userRole, ['general', 'siswa'], true);
+    $isOrtu = in_array($userRole, ['orang_tua'], true);
 
     $cutiPending = 0;
     if ($isAdmin) {
@@ -60,8 +65,15 @@
     $namaUser = $user?->nama ?? ($user?->name ?? 'User');
     $inisial = strtoupper(mb_substr($namaUser, 0, 2));
 
+    $dashboardUrl = $isOrtu ? route('dashboard.ortu') : url('dashboard');
+
     $menuUtama = [
-        ['url' => url('dashboard'), 'icon' => 'bi-grid-1x2-fill', 'label' => 'Dashboard', 'active' => request()->is('dashboard*') || request()->is('/')],
+        [
+            'url'    => $dashboardUrl,
+            'icon'   => 'bi-grid-1x2-fill',
+            'label'  => 'Dashboard',
+            'active' => request()->is('dashboard*') || request()->is('/'),
+        ],
     ];
 
     $menuAdmin = [
@@ -113,7 +125,7 @@
                         </a>
                     @endforeach
 
-                    {{-- ADMIN --}}
+                    {{-- SUPERADMIN & ADMIN --}}
                     @if ($isAdmin)
                         <div class="nav-label sidebar-text">Manajemen</div>
                         <div class="space-y-1">
@@ -141,7 +153,7 @@
                             </details>
                         </div>
 
-                    {{-- GENERAL USER --}}
+                    {{-- SISWA / GENERAL USER --}}
                     @elseif ($isGeneral)
                         <div class="nav-label sidebar-text">Absensi Saya</div>
                         <a href="{{ url('/absensi/pengguna') }}" title="Rekap Absensi"
@@ -155,6 +167,14 @@
                         <a href="{{ url('/izin/siswa') }}" title="Izin / Sakit"
                             class="nav-item {{ request()->is('izin/siswa*') ? 'active' : '' }}">
                             <i class="bi bi-file-earmark-medical-fill"></i><span class="sidebar-text truncate">Izin / Sakit</span>
+                        </a>
+
+                    {{-- ORANG TUA --}}
+                    @elseif ($isOrtu)
+                        <div class="nav-label sidebar-text">Informasi Sekolah</div>
+                        <a href="{{ url('/libur_khusus') }}" title="Jadwal Libur"
+                            class="nav-item {{ request()->is('libur_khusus*') ? 'active' : '' }}">
+                            <i class="bi bi-calendar2-heart-fill"></i><span class="sidebar-text truncate">Jadwal Libur</span>
                         </a>
                     @endif
                 </nav>
