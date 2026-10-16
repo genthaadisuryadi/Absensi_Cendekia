@@ -12,6 +12,8 @@
     // Perbaikan nama sapaan: Ambil nama jabatan jika ada, jika tidak gunakan nama depan user.
     $userJabatan = auth()->user()->jabatanStatus->jabatan_status ?? null;
     $namaDepan = $userJabatan ?: explode(' ', trim(auth()->user()->nama ?? auth()->user()->name ?? 'Pengguna'))[0];
+    
+    $userFoto = auth()->user()->foto_profil;
 
     // Ambil parameter dari URL, jika tidak ada gunakan bulan/tahun sekarang
     $selectedMonth = request('bulan', date('m'));
@@ -34,18 +36,29 @@
 
     {{-- HERO --}}
     <div class="page-hero">
-        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div>
-                <p class="text-indigo-100 text-sm font-medium mb-1" id="greeting">Selamat datang,</p>
-                <h2 class="text-2xl md:text-3xl font-extrabold text-white m-0">{{ $namaDepan }} 👋</h2>
-                <p class="text-indigo-100 text-sm mt-2 mb-0">
-                    Ringkasan kehadiran <strong class="text-white">{{ $lokasiCabang }}</strong> · {{ $bulanIni }}
-                </p>
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div class="flex items-center gap-4">
+                {{-- FOTO PROFIL ADMIN --}}
+                <div class="w-16 h-16 md:w-20 md:h-20 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center border-2 border-white/30 text-white font-bold text-2xl shadow-lg overflow-hidden shrink-0">
+                    @if($userFoto)
+                        <img src="{{ asset('storage/' . $userFoto) }}" alt="Foto" class="w-full h-full object-cover">
+                    @else
+                        {{ substr($namaDepan, 0, 1) }}
+                    @endif
+                </div>
+                
+                <div>
+                    <p class="text-indigo-100 text-sm font-medium mb-1" id="greeting">Selamat datang,</p>
+                    <h2 class="text-2xl md:text-3xl font-extrabold text-white m-0">{{ $namaDepan }} 👋</h2>
+                    <p class="text-indigo-100 text-sm mt-2 mb-0">
+                        Ringkasan kehadiran <strong class="text-white">{{ $lokasiCabang }}</strong> · {{ $bulanIni }}
+                    </p>
+                </div>
             </div>
 
             {{-- FILTER CABANG (ADMIN & PIMPINAN) --}}
             @if (isset($hakAkses) && in_array($hakAkses, [0, 1]))
-                <form method="GET" class="md:w-72">
+                <form method="GET" class="md:w-72 mt-4 md:mt-0">
                     <!-- Pertahankan filter bulan & tahun jika ada saat ganti cabang -->
                     <input type="hidden" name="bulan" value="{{ $selectedMonth }}">
                     <input type="hidden" name="tahun" value="{{ $selectedYear }}">

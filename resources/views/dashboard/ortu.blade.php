@@ -3,10 +3,23 @@
 @section('title', 'Dashboard Orang Tua')
 
 @section('content')
+@php
+    $namaDepan = explode(' ', trim(auth()->user()->nama ?? auth()->user()->name ?? 'Orang Tua'))[0];
+@endphp
 <div class="p-6">
-    <div class="mb-8">
-        <h1 class="text-2xl font-bold text-slate-800">Dashboard Orang Tua</h1>
-        <p class="text-slate-500 mt-1">Selamat datang, {{ $user->nama ?? $user->name ?? 'Orang Tua' }}!</p>
+    <div class="mb-8 flex items-center gap-4">
+        {{-- FOTO PROFIL ORTU --}}
+        <div class="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-2xl shadow-sm border border-blue-200 overflow-hidden shrink-0">
+            @if(Auth::user()->foto_profil)
+                <img src="{{ asset('storage/' . Auth::user()->foto_profil) }}" alt="Foto" class="w-full h-full object-cover">
+            @else
+                {{ substr($namaDepan, 0, 1) }}
+            @endif
+        </div>
+        <div>
+            <h1 class="text-2xl font-bold text-slate-800">Dashboard Orang Tua</h1>
+            <p class="text-slate-500 mt-1">Selamat datang, {{ $user->nama ?? $user->name ?? 'Orang Tua' }}!</p>
+        </div>
     </div>
 
     <!-- Data Anak -->
@@ -15,8 +28,12 @@
         @forelse($anakAnak as $anak)
         <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 flex flex-col">
             <div class="flex items-center gap-4 mb-4">
-                <div class="w-12 h-12 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-xl">
-                    {{ strtoupper(substr($anak->nama, 0, 1)) }}
+                <div class="w-12 h-12 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-xl overflow-hidden shrink-0">
+                    @if($anak->foto_profil)
+                        <img src="{{ asset('storage/' . $anak->foto_profil) }}" alt="Foto" class="w-full h-full object-cover">
+                    @else
+                        {{ strtoupper(substr($anak->nama, 0, 1)) }}
+                    @endif
                 </div>
                 <div>
                     <h3 class="font-bold text-slate-800">{{ $anak->nama }}</h3>
