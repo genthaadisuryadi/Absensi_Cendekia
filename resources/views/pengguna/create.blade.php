@@ -133,13 +133,22 @@
                     </div>
                 </div>
 
-                {{-- FIELD KHUSUS ORANG TUA: PILIH ANAK (SISWA) --}}
+                {{-- FIELD KHUSUS ORANG TUA: PILIH ANAK (SISWA) DENGAN SEARCH --}}
                 <div class="field full" id="field-anak-wrapper" style="display:none;">
                     <label class="font-semibold text-slate-700 mb-1 block"><i class="bi bi-people-fill text-indigo-600"></i> Pilih Siswa (Anak) yang Dipantau</label>
-                    <p class="text-xs text-slate-500 mb-2">Centang satu atau lebih siswa yang merupakan anak dari Orang Tua ini:</p>
-                    <div class="border border-slate-200 rounded-xl p-3 bg-slate-50 max-h-52 overflow-y-auto space-y-2">
+                    <p class="text-xs text-slate-500 mb-2">Cari dan centang satu atau lebih siswa yang merupakan anak dari Orang Tua ini:</p>
+                    
+                    {{-- Kotak Pencarian Siswa --}}
+                    <div class="relative mb-2">
+                        <span class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400">
+                            <i class="bi bi-search"></i>
+                        </span>
+                        <input type="text" id="searchSiswaInput" onkeyup="filterSiswaList()" placeholder="Ketik nama atau NIS siswa untuk mencari..." class="w-full pl-9 pr-4 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+
+                    <div id="siswaListContainer" class="border border-slate-200 rounded-xl p-3 bg-slate-50 max-h-52 overflow-y-auto space-y-2">
                         @forelse ($siswaList as $siswa)
-                            <label class="flex items-center gap-3 p-2 rounded-lg bg-white border border-slate-200/80 hover:border-indigo-400 cursor-pointer transition">
+                            <label class="siswa-item flex items-center gap-3 p-2 rounded-lg bg-white border border-slate-200/80 hover:border-indigo-400 cursor-pointer transition" data-name="{{ strtolower($siswa->nama) }}" data-nis="{{ strtolower($siswa->nomor_induk) }}">
                                 <input type="checkbox" name="siswa_ids[]" value="{{ $siswa->nomor_induk }}" class="w-4 h-4 text-indigo-600 rounded" {{ in_array($siswa->nomor_induk, old('siswa_ids', [])) ? 'checked' : '' }}>
                                 <span class="text-sm font-semibold text-slate-700">{{ $siswa->nama }}</span>
                                 <span class="text-xs text-slate-400 ml-auto">NIS: {{ $siswa->nomor_induk }}</span>
@@ -185,6 +194,23 @@
 </div>
 
 <script>
+    // Fitur Live Search Siswa
+    function filterSiswaList() {
+        const input = document.getElementById('searchSiswaInput');
+        const filter = input.value.toLowerCase();
+        const items = document.querySelectorAll('.siswa-item');
+
+        items.forEach(item => {
+            const name = item.getAttribute('data-name');
+            const nis = item.getAttribute('data-nis');
+            if (name.includes(filter) || nis.includes(filter)) {
+                item.style.display = 'flex';
+            } else {
+                item.style.display = 'none';
+            }
+        });
+    }
+
     // Preview Gambar
     function previewImage(input) {
         const icon = document.getElementById('foto-icon');
