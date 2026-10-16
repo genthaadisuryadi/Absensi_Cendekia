@@ -22,6 +22,11 @@
                 <span class="font-medium">Berhasil!</span> Aksi pada data pengguna sukses dilakukan.
             </div>
         @endif
+        @if(session('nama'))
+            <div class="p-4 mb-4 text-sm text-green-800 rounded-lg bg-green-50 border border-green-200">
+                <span class="font-medium">Detail:</span> {{ session('nama') }}
+            </div>
+        @endif
         @if($errors->any())
             <div class="p-4 mb-4 text-sm text-red-800 rounded-lg bg-red-50 border border-red-200">
                 <span class="font-medium">Gagal!</span> {{ $errors->first() }}
@@ -93,7 +98,7 @@
 
                             <tr class="hover:bg-indigo-50/30 transition">
                                 <td class="py-3 text-center">
-                                    <input type="checkbox" name="ids[]" value="{{ $data->nomor_induk }}" class="checkItem rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer w-4 h-4">
+                                    <input type="checkbox" value="{{ $data->nomor_induk }}" class="checkItem rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer w-4 h-4">
                                 </td>
                                 <td class="py-3">{{ $data->nomor_induk }}</td>
 
@@ -136,7 +141,7 @@
                 </table>
             </form>
 
-            {{-- Form Tersembunyi Khusus untuk Hapus Satuan (Mencegah bentrok form) --}}
+            {{-- Form Tersembunyi Khusus untuk Hapus Satuan (Mencegah bentrok form massal) --}}
             <form id="singleDeleteForm" method="POST" class="hidden">
                 @csrf
                 @method('DELETE')
@@ -247,31 +252,105 @@
                 }
             });
 
-            /* ===== LOGIKA HAPUS MULTI DATA ===== */
+            /* ===== LOGIKA HAPUS MULTI DATA (LINTAS HALAMAN & SEARCH) ===== */
+            // Array global untuk menyimpan ID yang dicentang
+            var selectedIds = [];
+
             function updateBulkContainer() {
-                var checkedCount = $('.checkItem:checked').length;
-                if (checkedCount > 0) {
-                    $('#selectedCount').text(checkedCount);
+                if (selectedIds.length > 0) {
+                    $('#selectedCount').text(selectedIds.length);
                     $('#bulkDeleteContainer').removeClass('hidden');
                 } else {
                     $('#bulkDeleteContainer').addClass('hidden');
                 }
             }
 
-            // Aksi Centang "Pilih Semua"
-            $('#checkAll').on('click', function() {
-                var isChecked = $(this).prop('checked');
-                // Centang semua baris yang terlihat di layar pencarian saat ini
-                $('.checkItem', table.rows({search:'applied'}).nodes()).prop('checked', isChecked);
+            // Aksi saat checkbox individual diklik
+            $('#penggunaTable tbody').on('change', '.checkItem', function() {
+                var id = $(this).val();
+                
+                if(this.checked) {
+                    // Jika dicentang, masukkan ke array jika belum ada
+                    if(selectedIds.indexOf(id) === -1) {
+                        selectedIds.push(id);
+                    }
+                } else {
+                    // Jika uncentang, hapus dari array
+                    selectedIds = selectedIds.filter(item => item !== id);
+                    $('#checkAll').prop('checked', false);
+                }
+                
                 updateBulkContainer();
             });
 
-            // Aksi Centang Satuan
-            $('#penggunaTable tbody').on('change', '.checkItem', function() {
-                var allChecked = $('.checkItem:checked').length ===$('.checkItem').length;
-                $('#checkAll').prop('checked', allChecked);
+            // Aksi saat checkbox "Pilih Semua" diklik
+            $('#checkAll').on('change', function() {
+                var isChecked = $(this).prop('checked');
+                
+                // Cari HANYA baris yang sedang tampil di hasil pencarian/halaman saat ini
+                var rows = table.rows({ 'search': 'applied', 'page': 'current' }).nodes();
+                
+                // Centang/uncentang checkbox di layar
+                $('input[type="checkbox"]', rows).prop('checked', isChecked);
+
+                // Update array global
+                $('input[type="checkbox"]', rows).each(function() {
+                    var id = $(this).val();
+                    if(isChecked) {
+                        if(selectedIds.indexOf(id) === -1) selectedIds.push(id);
+                    } else {
+                        selectedIds = selectedIds.filter(item => item !== id);
+                    }
+                });
+
                 updateBulkContainer();
             });
+
+            // Saat pindah halaman/search, pastikan checkbox yang ada di array tetap dicentang di layar
+            table.on('draw', function() {
+                var rows = table.rows({ 'search': 'applied', 'page': 'current' }).nodes();
+                
+                var allChecked = true;
+                var hasCheckbox = false;
+
+                $('input[type="checkbox"]', rows).each(function() {
+                    hasCheckbox = true;
+                    if(selectedIds.indexOf($(this).val()) !== -1) {$(this).prop('checked', true);
+                    } else {
+                        $(this).prop('checked', false);
+                        allChecked = false;
+                    }
+                });
+
+                if(hasCheckbox && allChecked) {
+                    $('#checkAll').prop('checked', true);
+                } else {
+                    $('#checkAll').prop('checked', false);
+                }
+            });
+
+            // Ganti fungsi submit form Hapus Massal agar mengirim data dari Array
+            window.confirmBulkDelete = function() {
+                if(selectedIds.length === 0) {
+                    alert('Tidak ada pengguna yang dipilih.');
+                    return;
+                }
+
+                if(confirm('Apakah Anda yakin ingin menghapus ' + selectedIds.length + ' pengguna yang dipilih beserta data absensinya? Aksi ini tidak dapat dibatalkan.')) {
+                    
+                    var form = $('#bulkDeleteForm');
+                    
+                    // Bersihkan input checkbox HTML lama (mencegah bentrok)
+                    form.find('input[name="ids[]"]').remove();
+
+                    // Tambahkan input hidden baru murni dari array selectedIds
+                    $.each(selectedIds, function(index, id) {
+                        form.append('<input type="hidden" name="ids[]" value="' + id + '">');
+                    });
+                    
+                    form.submit();
+                }
+            };
 
 
             /* ===== LOGIKA MODAL CEK KARTU RFID ===== */
@@ -326,19 +405,11 @@
             });
         });
 
-        /* ===== FUNGSI KONFIRMASI HAPUS (DIPANGGIL DARI HTML) ===== */
-        // Konfirmasi Hapus Massal
-        function confirmBulkDelete() {
-            if(confirm('Apakah Anda yakin ingin menghapus SEMUA pengguna yang dipilih beserta data absensinya? Aksi ini tidak dapat dibatalkan.')) {
-                $('#bulkDeleteForm').submit();
-            }
-        }
-
-        // Konfirmasi Hapus Satuan (Tidak Bentrok dengan Form Massal)
+        /* ===== FUNGSI KONFIRMASI HAPUS SATUAN ===== */
         function confirmDeleteSingle(id) {
             if(confirm('Yakin ingin menghapus pengguna ini beserta seluruh data absensinya?')) {
                 var form = $('#singleDeleteForm');
-                form.attr('action', '/pengguna/' + id); // Set URL tujuan penghapusan
+                form.attr('action', '/pengguna/' + id);
                 form.submit();
             }
         }
