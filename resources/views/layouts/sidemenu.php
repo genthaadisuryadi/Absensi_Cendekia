@@ -88,6 +88,8 @@
 
             @else
                 <!-- MENU SUPERADMIN & ADMIN -->
+                <div class="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider mt-4 mb-2 sidebar-text">Manajemen</div>
+                
                 <a href="{{ route('dashboard.index') }}"
                    class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 {{ request()->routeIs('dashboard*') ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30 font-semibold' : 'hover:bg-slate-800/70 hover:text-white' }}"
                    title="Dashboard">
@@ -102,9 +104,9 @@
                     <span class="sidebar-text truncate">Pengguna</span>
                 </a>
 
-                <!-- Absensi Standar (Siswa) -->
+                <!-- Absensi Siswa (Bisa dilihat Admin & Superadmin) -->
                 <a href="{{ route('absensi.index') }}"
-                   class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 {{ request()->routeIs('absensi.index') ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30 font-semibold' : 'hover:bg-slate-800/70 hover:text-white' }}"
+                   class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 {{ request()->routeIs('absensi.index') || request()->routeIs('absensi.show') ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30 font-semibold' : 'hover:bg-slate-800/70 hover:text-white' }}"
                    title="Absensi Siswa">
                     <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
                     <span class="sidebar-text truncate">Absensi Siswa</span>
@@ -115,8 +117,9 @@
                 <a href="{{ route('absensi.guru') }}"
                    class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 {{ request()->routeIs('absensi.guru*') ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30 font-semibold' : 'hover:bg-slate-800/70 hover:text-white' }}"
                    title="Absensi Guru & Staff">
-                    <svg class="w-5 h-5 shrink-0 text-indigo-400 group-hover:text-indigo-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
-                    <span class="sidebar-text truncate">Absensi Guru & Staff</span>
+                    <!-- Ikon yang sedikit berbeda (user-check) untuk membedakan dengan Absensi Siswa -->
+                    <svg class="w-5 h-5 shrink-0 text-indigo-400 group-hover:text-indigo-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    <span class="sidebar-text truncate text-indigo-100 font-semibold">Absensi Guru & Staff</span>
                 </a>
                 @endif
 
