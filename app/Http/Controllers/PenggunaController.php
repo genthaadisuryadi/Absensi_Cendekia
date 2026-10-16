@@ -241,6 +241,7 @@ class PenggunaController extends Controller
         ]);
     }
 
+    // ====== DESTROY: Hapus Satu Data ======
     public function destroy($id)
     {
         Pengguna::where('nomor_induk', $id)->delete();
@@ -273,6 +274,30 @@ class PenggunaController extends Controller
             ]);
         } else {
             return response()->json(['success' => false, 'message' => 'Kartu RFID ini belum terdaftar.']);
+        }
+    }
+
+    // ============================================
+    // HAPUS MULTI DATA (BULK DELETE)
+    // ============================================
+    public function bulkDestroy(Request $request)
+    {
+        $ids = $request->input('ids');
+
+        if (empty($ids)) {
+            return redirect()->back()->withErrors(['message' => 'Tidak ada data pengguna yang dipilih untuk dihapus.']);
+        }
+
+        try {
+            // Hapus semua pengguna dengan nomor_induk yang ada di array $ids
+            Pengguna::whereIn('nomor_induk', $ids)->delete();
+
+            return redirect()->route('pengguna.index')->with([
+                'successDelete' => true,
+                'nama'          => count($ids) . ' Pengguna Terpilih'
+            ]);
+        } catch (\Exception $e) {
+            return redirect()->back()->withErrors(['message' => 'Gagal menghapus data massal: ' . $e->getMessage()]);
         }
     }
 }

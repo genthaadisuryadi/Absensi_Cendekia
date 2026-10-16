@@ -91,12 +91,15 @@ Route::middleware(['auth', 'hakAkses:superadmin,admin'])->group(function () {
         Route::post('/import', [PenggunaController::class, 'import'])->name('import'); // Import Massal Excel
         Route::get('/create', [PenggunaController::class, 'create'])->name('create');
         Route::post('/', [PenggunaController::class, 'store'])->name('store');
+        
+        // Rute Kustom (Pastikan ditaruh sebelum /{id}/edit agar tidak bentrok)
+        Route::get('/cek-tag', [PenggunaController::class, 'cekTag'])->name('cek_tag');
+        Route::post('/bulk-destroy', [PenggunaController::class, 'bulkDestroy'])->name('bulk_destroy');
+        
         Route::get('/{id}/edit', [PenggunaController::class, 'edit'])->name('edit');
         Route::put('/{id}', [PenggunaController::class, 'update'])->name('update');
         Route::delete('/{id}', [PenggunaController::class, 'destroy'])->name('destroy');
     });
-
-    Route::get('pengguna/cek-tag', [App\Http\Controllers\PenggunaController::class, 'cekTag'])->name('pengguna.cek_tag');
 
     // Kelola Mesin
     Route::prefix('mesin')->name('mesin.')->group(function () {

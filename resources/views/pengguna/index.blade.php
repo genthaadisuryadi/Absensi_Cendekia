@@ -53,68 +53,94 @@
             </div>
         </div>
 
-        {{-- ================= TABLE ================= --}}
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-visible mb-12 p-6">
-            <table id="penggunaTable" class="w-full text-sm border-collapse">
-                <thead class="bg-gray-50 text-gray-600 uppercase text-[11px] font-bold tracking-wider">
-                    <tr>
-                        <th class="py-3">NIS / NIP</th>
-                        <th class="py-3">Nama</th>
-                        <th class="py-3">Kelas</th>
-                        <th class="py-3">Jabatan</th>
-                        <th class="py-3">Lokasi</th>
-                        <th class="py-3 text-center">Status</th>
-                        <th class="py-3 text-center">Aksi</th>
-                    </tr>
-                </thead>
+        {{-- ================= TABLE & BULK ACTION ================= --}}
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-visible mb-12 p-6 relative">
+            
+            {{-- Form Hapus Massal --}}
+            <form id="bulkDeleteForm" action="{{ route('pengguna.bulk_destroy') }}" method="POST">
+                @csrf
+                
+                <!-- Kontainer Hapus Massal (Hanya muncul saat ada checkbox yang dicentang) -->
+                <div id="bulkDeleteContainer" class="hidden mb-4 p-3 bg-rose-50 border border-rose-200 rounded-lg flex items-center justify-between">
+                    <span class="text-rose-700 font-medium text-sm">
+                        <span id="selectedCount" class="font-bold">0</span> Pengguna terpilih
+                    </span>
+                    <button type="button" onclick="confirmBulkDelete()" class="px-4 py-2 bg-rose-600 text-white text-xs font-bold rounded-lg hover:bg-rose-700 shadow transition flex items-center gap-2">
+                        <i class="bi bi-trash"></i> Hapus Terpilih
+                    </button>
+                </div>
 
-                <tbody class="divide-y divide-gray-100">
-                    @foreach ($pengguna as $data)
-                        @continue($data->nomor_induk == 0)
+                <table id="penggunaTable" class="w-full text-sm border-collapse">
+                    <thead class="bg-gray-50 text-gray-600 uppercase text-[11px] font-bold tracking-wider">
+                        <tr>
+                            <th class="py-3 text-center w-10">
+                                <!-- Checkbox Pilih Semua -->
+                                <input type="checkbox" id="checkAll" class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer w-4 h-4">
+                            </th>
+                            <th class="py-3">NIS / NIP</th>
+                            <th class="py-3">Nama</th>
+                            <th class="py-3">Kelas</th>
+                            <th class="py-3">Jabatan</th>
+                            <th class="py-3">Lokasi</th>
+                            <th class="py-3 text-center">Status</th>
+                            <th class="py-3 text-center">Aksi</th>
+                        </tr>
+                    </thead>
 
-                        <tr class="hover:bg-indigo-50/30 transition">
-                            <td class="py-3">{{ $data->nomor_induk }}</td>
+                    <tbody class="divide-y divide-gray-100">
+                        @foreach ($pengguna as$data)
+                            @continue($data->nomor_induk == 0)
 
-                            <td class="py-3 font-semibold text-slate-700">
-                                <a href="{{ route('absensi.pengguna', $data->nomor_induk) }}"
-                                    class="text-indigo-600 hover:text-indigo-800 hover:underline">
-                                    {{ $data->nama }}
-                                </a>
-                            </td>
+                            <tr class="hover:bg-indigo-50/30 transition">
+                                <td class="py-3 text-center">
+                                    <input type="checkbox" name="ids[]" value="{{ $data->nomor_induk }}" class="checkItem rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer w-4 h-4">
+                                </td>
+                                <td class="py-3">{{ $data->nomor_induk }}</td>
 
-                            <td class="py-3">{{ $data->kelas ?? '-' }}</td>
-                            <td class="py-3">
-                                <span class="px-2.5 py-1 bg-slate-100 text-slate-600 rounded-md text-xs font-medium border border-slate-200">
-                                    {{ $data->jabatan_status ?? '-' }}
-                                </span>
-                            </td>
-                            <td class="py-3 text-slate-600">{{ $data->lokasi ?? '-' }}</td>
+                                <td class="py-3 font-semibold text-slate-700">
+                                    <a href="{{ route('absensi.pengguna', $data->nomor_induk) }}"
+                                        class="text-indigo-600 hover:text-indigo-800 hover:underline">
+                                        {{ $data->nama }}
+                                    </a>
+                                </td>
 
-                            <td class="py-3 text-center">
-                                <span class="px-3 py-1 text-[11px] font-bold rounded-full {{ $data->aktif ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' : 'bg-rose-100 text-rose-700 border border-rose-200' }}">
-                                    {{ $data->aktif ? 'Aktif' : 'Nonaktif' }}
-                                </span>
-                            </td>
+                                <td class="py-3">{{ $data->kelas ?? '-' }}</td>
+                                <td class="py-3">
+                                    <span class="px-2.5 py-1 bg-slate-100 text-slate-600 rounded-md text-xs font-medium border border-slate-200">
+                                        {{ $data->jabatan_status ?? '-' }}
+                                    </span>
+                                </td>
+                                <td class="py-3 text-slate-600">{{ $data->lokasi ?? '-' }}</td>
 
-                            <td class="py-3 text-center space-x-2 whitespace-nowrap">
-                                <a href="{{ route('pengguna.edit', $data->nomor_induk) }}"
-                                    class="inline-flex px-3 py-1.5 border border-amber-400 text-amber-600 rounded-md hover:bg-amber-50 transition" title="Edit">
-                                    <i class="bi bi-pencil-square"></i>
-                                </a>
+                                <td class="py-3 text-center">
+                                    <span class="px-3 py-1 text-[11px] font-bold rounded-full {{ $data->aktif ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' : 'bg-rose-100 text-rose-700 border border-rose-200' }}">
+                                        {{ $data->aktif ? 'Aktif' : 'Nonaktif' }}
+                                    </span>
+                                </td>
 
-                                <form action="{{ route('pengguna.destroy', $data->nomor_induk) }}" method="POST"
-                                    class="inline" onsubmit="return confirm('Yakin ingin menghapus pengguna ini beserta seluruh data absensinya?')">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button class="inline-flex px-3 py-1.5 border border-rose-400 text-rose-600 rounded-md hover:bg-rose-50 transition" title="Hapus">
+                                <td class="py-3 text-center space-x-2 whitespace-nowrap">
+                                    <a href="{{ route('pengguna.edit', $data->nomor_induk) }}"
+                                        class="inline-flex px-3 py-1.5 border border-amber-400 text-amber-600 rounded-md hover:bg-amber-50 transition" title="Edit">
+                                        <i class="bi bi-pencil-square"></i>
+                                    </a>
+
+                                    {{-- Tombol Hapus Satuan --}}
+                                    <button type="button" onclick="confirmDeleteSingle('{{ $data->nomor_induk }}')"
+                                        class="inline-flex px-3 py-1.5 border border-rose-400 text-rose-600 rounded-md hover:bg-rose-50 transition" title="Hapus">
                                         <i class="bi bi-trash"></i>
                                     </button>
-                                </form>
-                            </td>
-                        </tr>
-                    @endforeach
-                </tbody>
-            </table>
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </form>
+
+            {{-- Form Tersembunyi Khusus untuk Hapus Satuan (Mencegah bentrok form) --}}
+            <form id="singleDeleteForm" method="POST" class="hidden">
+                @csrf
+                @method('DELETE')
+            </form>
         </div>
     </div>
 
@@ -158,7 +184,6 @@
     {{-- ================= MODAL CEK KARTU RFID ================= --}}
     <div id="modalCekKartu" class="fixed inset-0 z-[100] hidden items-center justify-center bg-black/50 backdrop-blur-sm transition-opacity">
         <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden transform scale-100">
-            {{-- Header Modal --}}
             <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
                 <h3 class="text-lg font-bold text-slate-800 m-0"><i class="bi bi-search text-blue-500 mr-2"></i> Cek Identitas Kartu</h3>
                 <button type="button" id="closeModalCek" class="text-slate-400 hover:text-red-500 transition text-xl">
@@ -166,16 +191,14 @@
                 </button>
             </div>
 
-            {{-- Body Modal --}}
             <div class="p-6 text-center">
-                <p class="text-sm text-slate-500 mb-4">Silakan <b>Tulis atau Tap kartu RFID</b> ke mesin <i>scanner</i> Anda.</p>
+                <p class="text-sm text-slate-500 mb-4">Silakan <b>tap kartu RFID</b> ke mesin <i>scanner</i> Anda.</p>
                 
                 <div class="mb-5">
-                    <input type="text" id="inputScanKartu" placeholder="Menunggu ID kartu..." 
+                    <input type="text" id="inputScanKartu" placeholder="Menunggu scan kartu..." 
                         class="w-full text-center font-mono text-xl py-3 px-4 border-2 border-blue-200 rounded-xl focus:border-blue-500 focus:ring-0 transition" autocomplete="off">
                 </div>
 
-                {{-- Area Hasil --}}
                 <div id="hasilScan" class="min-h-[100px] flex items-center justify-center">
                     <span class="text-slate-400 italic">Hasil identitas akan muncul di sini...</span>
                 </div>
@@ -192,7 +215,13 @@
     <script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.colVis.min.js"></script>
 
     <script>
-        $(function() {$('#penggunaTable').DataTable({
+        $(function() {
+            // Hancurkan DataTable jika sudah ada (mencegah error re-inisialisasi)
+            if ($.fn.DataTable.isDataTable('#penggunaTable')) {
+                $('#penggunaTable').DataTable().destroy();
+            }
+
+            var table = $('#penggunaTable').DataTable({
                 pageLength: 10,
                 responsive: true,
                 dom: 'Bfrtip',
@@ -203,6 +232,10 @@
                     { extend: 'print', title: 'Data Pengguna' },
                     'colvis'
                 ],
+                // Mencegah sorting pada kolom ke-0 (kolom checkbox)
+                columnDefs: [ { orderable: false, targets: 0 } ],
+                // Urutkan default berdasarkan kolom ke-1 (NIS)
+                order: [[ 1, 'asc' ]], 
                 language: {
                     search: "Cari data:",
                     lengthMenu: "Tampilkan _MENU_ data",
@@ -214,11 +247,37 @@
                 }
             });
 
+            /* ===== LOGIKA HAPUS MULTI DATA ===== */
+            function updateBulkContainer() {
+                var checkedCount = $('.checkItem:checked').length;
+                if (checkedCount > 0) {
+                    $('#selectedCount').text(checkedCount);
+                    $('#bulkDeleteContainer').removeClass('hidden');
+                } else {
+                    $('#bulkDeleteContainer').addClass('hidden');
+                }
+            }
+
+            // Aksi Centang "Pilih Semua"
+            $('#checkAll').on('click', function() {
+                var isChecked = $(this).prop('checked');
+                // Centang semua baris yang terlihat di layar pencarian saat ini
+                $('.checkItem', table.rows({search:'applied'}).nodes()).prop('checked', isChecked);
+                updateBulkContainer();
+            });
+
+            // Aksi Centang Satuan
+            $('#penggunaTable tbody').on('change', '.checkItem', function() {
+                var allChecked = $('.checkItem:checked').length ===$('.checkItem').length;
+                $('#checkAll').prop('checked', allChecked);
+                updateBulkContainer();
+            });
+
+
             /* ===== LOGIKA MODAL CEK KARTU RFID ===== */
             $('#btnCekKartu').on('click', function() {
                 $('#modalCekKartu').removeClass('hidden').addClass('flex');
                 $('#hasilScan').html('<span class="text-slate-400 italic">Hasil identitas akan muncul di sini...</span>');
-                // Auto focus ke input agar langsung siap menampung hasil scan scanner USB
                 setTimeout(() => { $('#inputScanKartu').val('').focus(); }, 100);
             });
 
@@ -227,7 +286,6 @@
                 $('#inputScanKartu').val('');
             });
 
-            // Deteksi input dari scanner (tekan Enter/Barcode scanner submit otomatis)
             $('#inputScanKartu').on('keypress', function(e) {
                 if(e.which === 13) { 
                     e.preventDefault();
@@ -257,7 +315,6 @@
                                     </div>
                                 `);
                             }
-                            // Kosongkan input agar langsung siap untuk scan kartu berikutnya tanpa harus di-klik
                             $('#inputScanKartu').val('').focus();
                         },
                         error: function() {
@@ -268,5 +325,22 @@
                 }
             });
         });
+
+        /* ===== FUNGSI KONFIRMASI HAPUS (DIPANGGIL DARI HTML) ===== */
+        // Konfirmasi Hapus Massal
+        function confirmBulkDelete() {
+            if(confirm('Apakah Anda yakin ingin menghapus SEMUA pengguna yang dipilih beserta data absensinya? Aksi ini tidak dapat dibatalkan.')) {
+                $('#bulkDeleteForm').submit();
+            }
+        }
+
+        // Konfirmasi Hapus Satuan (Tidak Bentrok dengan Form Massal)
+        function confirmDeleteSingle(id) {
+            if(confirm('Yakin ingin menghapus pengguna ini beserta seluruh data absensinya?')) {
+                var form = $('#singleDeleteForm');
+                form.attr('action', '/pengguna/' + id); // Set URL tujuan penghapusan
+                form.submit();
+            }
+        }
     </script>
 @endsection
