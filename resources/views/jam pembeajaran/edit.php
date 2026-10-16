@@ -15,10 +15,11 @@ if ($result[7] == 1) {
     $seconds = "+32400 seconds";
 }
 
-$jam_masuk = date('H:i:s', strtotime($seconds, strtotime(date($result[2]))));
-$istirahat_mulai = date('H:i:s', strtotime($seconds, strtotime(date($result[4]))));
-$istirahat_selesai = date('H:i:s', strtotime($seconds, strtotime(date($result[5]))));
-$jam_pulang = date('H:i:s', strtotime($seconds, strtotime(date($result[3]))));
+// Menggunakan format 'H:i' (Format 24 Jam murni tanpa AM/PM) secara real-time dari database
+$jam_masuk = date('H:i', strtotime($seconds, strtotime(date($result[2]))));
+$istirahat_mulai = date('H:i', strtotime($seconds, strtotime(date($result[4]))));
+$istirahat_selesai = date('H:i', strtotime($seconds, strtotime(date($result[5]))));
+$jam_pulang = date('H:i', strtotime($seconds, strtotime(date($result[3]))));
 ?>
 
 <!DOCTYPE html>
@@ -77,19 +78,19 @@ $jam_pulang = date('H:i:s', strtotime($seconds, strtotime(date($result[3]))));
                                             <input type="text" class="form-control" name="lokasi" value="<?= $result[1] ?>" autofocus required>
                                         </div>
                                         <div class="form-group">
-                                            <label>Jam Masuk</label>
+                                            <label>Jam Masuk (Format 24 Jam)</label>
                                             <input type="time" class="form-control" name="jam_masuk" value="<?= $jam_masuk ?>" required>
                                         </div>
                                         <div class="form-group">
-                                            <label>Jam Pulang</label>
+                                            <label>Jam Pulang (Format 24 Jam)</label>
                                             <input type="time" class="form-control" name="jam_pulang" value="<?= $jam_pulang ?>" required>
                                         </div>
                                         <div class="form-group">
-                                            <label>Mulai Istirahat</label>
+                                            <label>Mulai Istirahat (Format 24 Jam)</label>
                                             <input type="time" class="form-control" name="istirahat_mulai" value="<?= $istirahat_mulai ?>" required>
                                         </div>
                                         <div class="form-group">
-                                            <label>Selesai Istirahat</label>
+                                            <label>Selesai Istirahat (Format 24 Jam)</label>
                                             <input type="time" class="form-control" name="istirahat_selesai" value="<?= $istirahat_selesai ?>" required>
                                         </div>
                                         <div class="form-group">
@@ -184,6 +185,13 @@ $jam_pulang = date('H:i:s', strtotime($seconds, strtotime(date($result[3]))));
     <!-- Page specific script -->
     <script>
         $(function() {
+            // Memastikan data selalu segar saat halaman dimuat
+            window.addEventListener("pageshow", function(event) {
+                if (event.persisted) {
+                    window.location.reload();
+                }
+            });
+
             $("#example1").DataTable({
                 "responsive": true,
                 "lengthChange": true,
