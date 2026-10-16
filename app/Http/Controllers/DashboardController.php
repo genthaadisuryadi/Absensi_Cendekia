@@ -59,14 +59,19 @@ class DashboardController extends Controller
         $month = $request->get('month', Carbon::now()->month);
         $year  = $request->get('year', Carbon::now()->year);
 
-        $hakAkses = (int) DB::table('jabatan_status')
-            ->where('id', $user->jabatan_status)
-            ->value('hak_akses');
+        $hakAksesObj = DB::table('jabatan_status')
+            ->join('hak_akses', 'jabatan_status.hak_akses', '=', 'hak_akses.id')
+            ->where('jabatan_status.id', $user->jabatan_status)
+            ->select('hak_akses.id', 'hak_akses.hak')
+            ->first();
+
+        $hakAkses = (int) ($hakAksesObj->id ?? 0);
+        $namaHakAkses = strtolower($hakAksesObj->hak ?? '');
 
         /**
-         * ORANG TUA (hak_akses = 4)
+         * ORANG TUA (hak_akses = 4 atau nama hak akses orang tua)
          */
-        if ($hakAkses === 4) {
+        if ($hakAkses === 4 || str_contains($namaHakAkses, 'orang_tua')) {
             return redirect()->route('dashboard.ortu');
         }
 
@@ -76,7 +81,7 @@ class DashboardController extends Controller
         /**
          * SUPERADMIN (1) & ADMIN (2)
          */
-        if (in_array($hakAkses, [1, 2], true) || str_contains(strtolower($user->tag ?? ''), 'admin')) {
+        if (in_array($hakAkses, [1, 2], true) || str_contains(strtolower($user->tag ?? ''), 'admin') || $namaHakAkses === 'superadmin') {
             $cabangGedungId = $request->get('cabangGedung');
             $cabangGedungList = DB::table('cabang_gedung')->get();
 
@@ -86,11 +91,15 @@ class DashboardController extends Controller
                     ->value('lokasi')
                 : 'Semua Cabang';
 
+            // Cek apakah user adalah Superadmin
+            $isSuperAdmin = ($hakAkses === 1 || $namaHakAkses === 'superadmin' || $namaHakAkses === 'super admin');
+
             $stats = $this->getMonthlyStats(
                 $month,
                 $year,
                 $cabangGedungId,
-                null
+                null,
+                $isSuperAdmin
             );
 
             return view('dashboard.index', [
@@ -100,12 +109,12 @@ class DashboardController extends Controller
                 'terlambat'        => $stats['telat'],
                 'lokasiCabang'     => $lokasiCabang,
                 'cabangGedungId'   => $cabangGedungId ?? null,
-                'hakAkses'         => 1,
+                'hakAkses'         => $hakAkses,
             ]);
         }
 
         /**
-         * SISWA / GENERAL (hak_akses = 3)
+         * SISWA / GENERAL USER
          */
         $nomorInduk = $user->nomor_induk;
 
@@ -165,13 +174,14 @@ class DashboardController extends Controller
     }
 
     /**
-     * GRAFIK ABSEN MASUK BULANAN
+     * GRAFIK ABSEN MASUK BULANAN (DIPERKETAT BERDASARKAN ROLE)
      */
     private function getMonthlyStats(
         $month,
         $year,
         $cabangGedungId = null,
-        $userNomorInduk = null
+        $userNomorInduk = null,
+        $isSuperAdmin = false
     ) {
         $daysInMonth = Carbon::create($year, $month)->daysInMonth;
 
@@ -183,14 +193,31 @@ class DashboardController extends Controller
         $jamMasukStr = $jamSetting['1'] ?? '07:00:00';
         $toleransi = (int) ($jamSetting['toleransi'] ?? 5);
 
-        $query = Absensi::with('pengguna')
+        $query = Absensi::with('pengguna.jabatanStatus.hakAkses')
             ->where('kategori', 1)
             ->whereMonth('absen', $month)
             ->whereYear('absen', $year)
-            ->whereNotNull('absen')
-            ->whereHas('pengguna', function ($q) {
-                $q->where('jabatan_status', '!=', 4);
+            ->whereNotNull('absen');
+
+        if ($isSuperAdmin) {
+            // Superadmin melihat rekap semua (Siswa + Guru & Staff), KECUALI Orang Tua
+            $query->whereHas('pengguna', function ($q) {
+                $q->whereHas('jabatanStatus', function ($q2) {
+                    $q2->whereHas('hakAkses', function ($q3) {
+                        $q3->whereNotIn('hak', ['orang_tua', 'orang tua', 'ortu']);
+                    });
+                });
             });
+        } else {
+            // Admin biasa HANYA melihat rekap Siswa / General
+            $query->whereHas('pengguna', function ($q) {
+                $q->whereHas('jabatanStatus', function ($q2) {
+                    $q2->whereHas('hakAkses', function ($q3) {
+                        $q3->whereIn('hak', ['siswa', 'general']);
+                    });
+                });
+            });
+        }
 
         if ($userNomorInduk) {
             $query->where('nomor_induk', $userNomorInduk);
@@ -203,6 +230,8 @@ class DashboardController extends Controller
         }
 
         foreach ($query->get() as $row) {
+            if (!$row->pengguna) continue;
+
             $cabangId = $row->pengguna->cabang_gedung ?? null;
             $waktuLokal = self::toWaktuCabang($row->absen, $cabangId);
             $hariIndex  = (int) $waktuLokal->format('d') - 1;
