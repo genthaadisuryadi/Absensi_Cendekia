@@ -29,6 +29,12 @@ class AbsensiController extends Controller
     /**
      * SIMPAN PENGATURAN JAM ABSENSI (UPDATE: HARI AKTIF)
      */
+    public function editJam()
+    {
+        $jamSetting = $this->getJamConfig();
+        return view('absensi.jam_setting', compact('jamSetting'));
+    }
+
     public function updateJam(Request $request)
     {
         $request->validate([
@@ -37,7 +43,7 @@ class AbsensiController extends Controller
             'jam_selesai_istirahat' => 'required',
             'jam_pulang'            => 'required',
             'toleransi'             => 'required|integer|min:0|max:180',
-            'hari_aktif'            => 'required|array|min:1', // Wajib pilih minimal 1 hari
+            'hari_aktif'            => 'required|array|min:1',
         ], [
             'hari_aktif.required'   => 'Silakan centang minimal satu hari aktif absensi.',
         ]);
@@ -46,13 +52,18 @@ class AbsensiController extends Controller
             return strlen($t) === 5 ? $t . ':00' : $t;
         };
 
+        // KUNCI ARRAY DISESUAIKAN:
+        // '1' = Jam Masuk
+        // '2' = Jam Mulai Istirahat
+        // '3' = Jam Selesai Istirahat
+        // '4' = Jam Pulang
         $data = [
             '1'          => $formatTime($request->jam_masuk),
             '2'          => $formatTime($request->jam_mulai_istirahat),
             '3'          => $formatTime($request->jam_selesai_istirahat),
             '4'          => $formatTime($request->jam_pulang),
             'toleransi'  => (int) $request->toleransi,
-            'hari_aktif' => $request->hari_aktif, // Menyimpan array ["Senin","Selasa",dst]
+            'hari_aktif' => $request->hari_aktif,
         ];
 
         Storage::disk('local')->put('jam_absensi.json', json_encode($data, JSON_PRETTY_PRINT));
