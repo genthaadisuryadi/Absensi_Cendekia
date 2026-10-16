@@ -67,7 +67,7 @@
 
             <hr class="border-slate-100 mb-6">
 
-            {{-- AREA PENGATURAN WAKTU (Format 24 Jam Input Teks HH:MM) --}}
+            {{-- AREA PENGATURAN WAKTU (Name input sudah disesuaikan dengan Kategori 1 & 4) --}}
             <div class="form-body grid grid-cols-1 md:grid-cols-2 gap-6">
 
                 <div class="field">
