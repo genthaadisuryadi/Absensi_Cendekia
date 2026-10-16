@@ -67,42 +67,42 @@
 
             <hr class="border-slate-100 mb-6">
 
-            {{-- AREA PENGATURAN WAKTU (Format 24 Jam Dipaksa Lewat CSS) --}}
+            {{-- AREA PENGATURAN WAKTU (Format 24 Jam Input Teks HH:MM) --}}
             <div class="form-body grid grid-cols-1 md:grid-cols-2 gap-6">
 
                 <div class="field">
-                    <label for="jam_masuk" class="block font-semibold text-sm mb-2">Jam Masuk (Kategori 1)</label>
+                    <label for="jam_masuk" class="block font-semibold text-sm mb-2">Jam Masuk (Kategori 1) - Format 24 Jam</label>
                     <div class="relative">
                         <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400"><i class="bi bi-box-arrow-in-right"></i></div>
-                        <input type="time" id="jam_masuk" name="jam_masuk" class="form-control pl-10 w-full rounded-lg border-slate-200 focus:border-indigo-500 focus:ring-indigo-500"
-                            value="{{ substr($jamSetting['1'] ?? '08:00:00', 0, 5) }}" required style="color-scheme: light;">
+                        <input type="text" id="jam_masuk" name="jam_masuk" placeholder="Contoh: 08:00" maxlength="5" class="form-control pl-10 w-full rounded-lg border-slate-200 focus:border-indigo-500 focus:ring-indigo-500"
+                            value="{{ substr($jamSetting['1'] ?? '08:00:00', 0, 5) }}" required>
                     </div>
                 </div>
 
                 <div class="field">
-                    <label for="jam_pulang" class="block font-semibold text-sm mb-2">Jam Pulang (Kategori 4)</label>
+                    <label for="jam_pulang" class="block font-semibold text-sm mb-2">Jam Pulang (Kategori 4) - Format 24 Jam</label>
                     <div class="relative">
                         <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400"><i class="bi bi-box-arrow-right"></i></div>
-                        <input type="time" id="jam_pulang" name="jam_pulang" class="form-control pl-10 w-full rounded-lg border-slate-200 focus:border-indigo-500 focus:ring-indigo-500"
-                            value="{{ substr($jamSetting['4'] ?? '17:00:00', 0, 5) }}" required style="color-scheme: light;">
+                        <input type="text" id="jam_pulang" name="jam_pulang" placeholder="Contoh: 17:00" maxlength="5" class="form-control pl-10 w-full rounded-lg border-slate-200 focus:border-indigo-500 focus:ring-indigo-500"
+                            value="{{ substr($jamSetting['4'] ?? '17:00:00', 0, 5) }}" required>
                     </div>
                 </div>
 
                 <div class="field">
-                    <label for="jam_mulai_istirahat" class="block font-semibold text-sm mb-2">Jam Mulai Istirahat (Kategori 2)</label>
+                    <label for="jam_mulai_istirahat" class="block font-semibold text-sm mb-2">Jam Mulai Istirahat (Kategori 2) - Format 24 Jam</label>
                     <div class="relative">
                         <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400"><i class="bi bi-cup-hot"></i></div>
-                        <input type="time" id="jam_mulai_istirahat" name="jam_mulai_istirahat" class="form-control pl-10 w-full rounded-lg border-slate-200 focus:border-indigo-500 focus:ring-indigo-500"
-                            value="{{ substr($jamSetting['2'] ?? '12:00:00', 0, 5) }}" required style="color-scheme: light;">
+                        <input type="text" id="jam_mulai_istirahat" name="jam_mulai_istirahat" placeholder="Contoh: 12:00" maxlength="5" class="form-control pl-10 w-full rounded-lg border-slate-200 focus:border-indigo-500 focus:ring-indigo-500"
+                            value="{{ substr($jamSetting['2'] ?? '12:00:00', 0, 5) }}" required>
                     </div>
                 </div>
 
                 <div class="field">
-                    <label for="jam_selesai_istirahat" class="block font-semibold text-sm mb-2">Jam Selesai Istirahat (Kategori 3)</label>
+                    <label for="jam_selesai_istirahat" class="block font-semibold text-sm mb-2">Jam Selesai Istirahat (Kategori 3) - Format 24 Jam</label>
                     <div class="relative">
                         <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400"><i class="bi bi-alarm"></i></div>
-                        <input type="time" id="jam_selesai_istirahat" name="jam_selesai_istirahat" class="form-control pl-10 w-full rounded-lg border-slate-200 focus:border-indigo-500 focus:ring-indigo-500"
-                            value="{{ substr($jamSetting['3'] ?? '13:00:00', 0, 5) }}" required style="color-scheme: light;">
+                        <input type="text" id="jam_selesai_istirahat" name="jam_selesai_istirahat" placeholder="Contoh: 13:00" maxlength="5" class="form-control pl-10 w-full rounded-lg border-slate-200 focus:border-indigo-500 focus:ring-indigo-500"
+                            value="{{ substr($jamSetting['3'] ?? '13:00:00', 0, 5) }}" required>
                     </div>
                 </div>
 
