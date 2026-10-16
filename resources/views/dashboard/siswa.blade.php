@@ -161,7 +161,7 @@
                             $badgeClass = 'bg-amber-50 text-amber-700 border-amber-200';$iconClass  = 'bi-exclamation-triangle-fill';
                         } elseif (stripos($status, 'Pulang Cepat') !== false) {
                             $badgeClass = 'bg-blue-50 text-blue-700 border-blue-200';$iconClass  = 'bi-info-circle-fill';
-                        } elseif (stripos($status, 'Izin') !== false \vert{}\vert{} stripos($status, 'Sakit') !== false) {
+                        } elseif (stripos($status, 'Izin') !== false || stripos($status, 'Sakit') !== false) {
                             $badgeClass = 'bg-sky-50 text-sky-700 border-sky-200';$iconClass  = 'bi-file-medical-fill';
                         } else {
                             $badgeClass = 'bg-emerald-50 text-emerald-700 border-emerald-200';$iconClass  = 'bi-check-circle-fill';
