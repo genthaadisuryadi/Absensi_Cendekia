@@ -46,8 +46,10 @@
     $hakAkses = $jabatanStatus?->hakAkses;
 
     $userRole = str_replace(' ', '_', strtolower(trim($hakAkses?->hak ?? '')));
+    $hakAksesId = $hakAkses?->id ?? null;
 
     $isAdmin = in_array($userRole, ['superadmin', 'admin', 'nusabot', 'full'], true);
+    $isSuperAdmin = ($hakAksesId == 1 || in_array($userRole, ['superadmin', 'nusabot', 'full']));
     $isGeneral = in_array($userRole, ['general', 'siswa'], true);
     $isOrtu = in_array($userRole, ['orang_tua'], true);
 
@@ -72,13 +74,23 @@
         ],
     ];
 
+    // MEMBANGUN ARRAY MENU MANAJEMEN SECARA DINAMIS
     $menuAdmin = [
         ['url' => url('pengguna'), 'icon' => 'bi-people-fill', 'label' => 'Pengguna', 'active' => request()->is('pengguna*')],
-        ['url' => url('absensi'), 'icon' => 'bi-card-checklist', 'label' => 'Absensi', 'active' => request()->is('absensi*') && !request()->is('absensi/pengguna*')],
-        ['url' => url('cuti'), 'icon' => 'bi-calendar-event-fill', 'label' => 'Cuti', 'active' => request()->is('cuti*'), 'badge' => $cutiPending],
-        ['url' => url('libur_khusus'), 'icon' => 'bi-calendar2-heart-fill', 'label' => 'Tanggal Libur', 'active' => request()->is('libur_khusus*')],
-        ['url' => url('mesin'), 'icon' => 'bi-cpu-fill', 'label' => 'Mesin', 'active' => request()->is('mesin*')],
     ];
+
+    // Menu Absensi Siswa (Untuk Admin & Superadmin)
+    $menuAdmin[] = ['url' => url('absensi'), 'icon' => 'bi-person-check-fill', 'label' => 'Absensi Siswa', 'active' => request()->is('absensi') || request()->is('absensi/*') && !request()->is('absensi/pengguna*')];
+
+    // Menu Absensi Guru & Staff (KHUSUS SUPERADMIN)
+    if ($isSuperAdmin) {
+        $menuAdmin[] = ['url' => route('absensi.guru'), 'icon' => 'bi-person-badge-fill', 'label' => 'Absensi Guru & Staff', 'active' => request()->routeIs('absensi.guru*')];
+    }
+
+    // Sisa Menu Manajemen
+    $menuAdmin[] = ['url' => url('cuti'), 'icon' => 'bi-calendar-event-fill', 'label' => 'Cuti', 'active' => request()->is('cuti*'), 'badge' => $cutiPending];
+    $menuAdmin[] = ['url' => url('libur_khusus'), 'icon' => 'bi-calendar2-heart-fill', 'label' => 'Tanggal Libur', 'active' => request()->is('libur_khusus*')];
+    $menuAdmin[] = ['url' => url('mesin'), 'icon' => 'bi-cpu-fill', 'label' => 'Mesin', 'active' => request()->is('mesin*')];
 
     $menuSetting = [
         ['url' => route('jam-absensi.edit'), 'label' => 'Jam Absensi', 'active' => request()->is('pengaturan/jam-absensi*')],
@@ -275,7 +287,6 @@
             try { localStorage.setItem('sidebarCollapsed', collapsed ? '1' : '0'); } catch (e) {}
         }
 
-        // pulihkan status sidebar
         try {
             if (window.innerWidth > 1024 && localStorage.getItem('sidebarCollapsed') === '1') {
                 sidebar.classList.add('is-collapsed');
@@ -283,13 +294,11 @@
             }
         } catch (e) {}
 
-        // menu pengguna
         const chip = document.getElementById('userChip');
         const menu = document.getElementById('userMenu');
         chip.addEventListener('click', e => { e.stopPropagation(); menu.classList.toggle('open'); });
         document.addEventListener('click', () => menu.classList.remove('open'));
 
-        // tanggal
         const tgl = document.getElementById('today-label');
         function setTodayLabel() {
             const n = new Date();
