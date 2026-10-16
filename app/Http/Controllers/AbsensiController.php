@@ -301,7 +301,7 @@ class AbsensiController extends Controller
             return back()->with('error', 'Hari ini diatur sebagai hari Libur. Anda tidak dapat melakukan presensi.');
         }
 
-        $user = \Illuminate\Support\Facades\Auth::user();
+        $user = Auth::user();
         $kategori = $request->input('kategori');
 
         if (!in_array($kategori, [1, 4])) {
@@ -356,12 +356,13 @@ class AbsensiController extends Controller
 
         $cabangGedungs = CabangGedung::where('aktif', 1)->get();
         
-        // Ambil data absensi yang bukan Siswa dan bukan Orang Tua
+        // Ambil data absensi KECUALI yang nama jabatannya mengandung kata "Siswa" atau "Orang Tua"
         $query = Absensi::with(['mesin', 'pengguna.cabangGedung'])
             ->whereHas('pengguna', function ($q) {
-                // Kecualikan Hak Akses 3 (Siswa) dan 4 (Orang Tua)
                 $q->whereHas('jabatanStatus', function ($q2) {
-                    $q2->whereNotIn('hak_akses', [3, 4]);
+                    $q2->whereRaw('LOWER(jabatan_status) NOT LIKE ?', ['%siswa%'])
+                       ->whereRaw('LOWER(jabatan_status) NOT LIKE ?', ['%orang tua%'])
+                       ->whereRaw('LOWER(jabatan_status) NOT LIKE ?', ['%ortu%']);
                 });
             });
 
@@ -384,7 +385,7 @@ class AbsensiController extends Controller
         $jamConfig = $this->getJamConfig();
         $toleransi = (int) ($jamConfig['toleransi'] ?? 5);
 
-        // Format waktu & status (Logika yang sama dengan index absensi siswa)
+        // Format waktu & status (Logika yang sama dengan index absensi)
         foreach ($absensiGuru as $absensi) {
             if (empty($absensi->absen)) continue;
 
