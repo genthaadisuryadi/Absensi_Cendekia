@@ -18,11 +18,12 @@ class DashboardController extends Controller
     public static function getJamSetting(): array
     {
         $default = [
-            '1'         => '08:00:00', // Masuk
-            '2'         => '12:00:00', // Mulai Istirahat
-            '3'         => '13:00:00', // Selesai Istirahat
-            '4'         => '17:00:00', // Pulang
-            'toleransi' => 15,         // Toleransi keterlambatan (menit)
+            '1'          => '07:00:00', // Jam Masuk (Kategori 1)
+            '2'          => '12:00:00', // Mulai Istirahat (Kategori 2)
+            '3'          => '13:00:00', // Selesai Istirahat (Kategori 3)
+            '4'          => '17:00:00', // Jam Pulang (Kategori 4)
+            'toleransi'  => 5,          // Toleransi keterlambatan (menit)
+            'hari_aktif' => ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat'],
         ];
 
         if (Storage::disk('local')->exists('jam_absensi.json')) {
@@ -63,21 +64,17 @@ class DashboardController extends Controller
             ->value('hak_akses');
 
         /**
-         * ===============================
-         * 1. ORANG TUA (hak_akses = 4)
-         * ===============================
+         * ORANG TUA (hak_akses = 4)
          */
         if ($hakAkses === 4) {
             return redirect()->route('dashboard.ortu');
         }
 
         $jamSetting = self::getJamSetting();
-        $toleransi  = (int) ($jamSetting['toleransi'] ?? 15);
+        $toleransi  = (int) ($jamSetting['toleransi'] ?? 5);
 
         /**
-         * ===============================
-         * 2. SUPERADMIN (1) & ADMIN (2)
-         * ===============================
+         * SUPERADMIN (1) & ADMIN (2)
          */
         if (in_array($hakAkses, [1, 2], true) || str_contains(strtolower($user->tag ?? ''), 'admin')) {
             $cabangGedungId = $request->get('cabangGedung');
@@ -108,9 +105,7 @@ class DashboardController extends Controller
         }
 
         /**
-         * ===============================
-         * 3. SISWA / GENERAL (hak_akses = 3)
-         * ===============================
+         * SISWA / GENERAL (hak_akses = 3)
          */
         $nomorInduk = $user->nomor_induk;
 
@@ -170,9 +165,7 @@ class DashboardController extends Controller
     }
 
     /**
-     * =====================================
      * GRAFIK ABSEN MASUK BULANAN
-     * =====================================
      */
     private function getMonthlyStats(
         $month,
@@ -187,8 +180,8 @@ class DashboardController extends Controller
         $dataTelat = array_fill(0, $daysInMonth, 0);
 
         $jamSetting = self::getJamSetting();
-        $jamMasukStr = $jamSetting['1'] ?? '08:00:00';
-        $toleransi = (int) ($jamSetting['toleransi'] ?? 15);
+        $jamMasukStr = $jamSetting['1'] ?? '07:00:00';
+        $toleransi = (int) ($jamSetting['toleransi'] ?? 5);
 
         $query = Absensi::with('pengguna')
             ->where('kategori', 1)
@@ -196,7 +189,6 @@ class DashboardController extends Controller
             ->whereYear('absen', $year)
             ->whereNotNull('absen')
             ->whereHas('pengguna', function ($q) {
-                // Jangan hitung akun Orang Tua
                 $q->where('jabatan_status', '!=', 4);
             });
 
@@ -237,9 +229,7 @@ class DashboardController extends Controller
     }
 
     /**
-     * =====================================
      * DASHBOARD KHUSUS ORANG TUA
-     * =====================================
      */
     public function ortu(Request $request)
     {
@@ -247,16 +237,14 @@ class DashboardController extends Controller
         $anakAnak = $user->anak()->get();
 
         $jamSetting = self::getJamSetting();
-        $jamMasukStr = $jamSetting['1'] ?? '08:00:00';
-        $toleransi = (int) ($jamSetting['toleransi'] ?? 15);
+        $jamMasukStr = $jamSetting['1'] ?? '07:00:00';
+        $toleransi = (int) ($jamSetting['toleransi'] ?? 5);
 
-        // Gunakan tanggal hari ini sesuai WIB (+7 jam)
         $todayWib = Carbon::now()->addHours(7)->toDateString();
 
         $riwayatAbsensi = collect();
 
         foreach ($anakAnak as $anak) {
-            // Ambil semua absensi masuk milik anak, lalu cek yang tanggal lokalnya hari ini
             $absenHariIni = DB::table('absensi')
                 ->where('nomor_induk', $anak->nomor_induk)
                 ->where('kategori', 1)
@@ -282,7 +270,6 @@ class DashboardController extends Controller
                 $anak->status_absen = 'Belum Absen';
             }
 
-            // Ambil riwayat absensi 5 terakhir untuk anak ini & konversi ke jam WIB
             $riwayat = DB::table('absensi')
                 ->where('nomor_induk', $anak->nomor_induk)
                 ->orderBy('absen', 'desc')
