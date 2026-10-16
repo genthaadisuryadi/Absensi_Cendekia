@@ -34,7 +34,7 @@
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/jquery.dataTables.min.css">
     <link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.4.2/css/buttons.dataTables.min.css">
 
-    {{-- Tema modern (harus paling akhir agar menimpa library lain) --}}
+    {{-- Tema modern --}}
     <link rel="stylesheet" href="{{ asset('css/modern-ui.css') }}?v={{ @filemtime(public_path('css/modern-ui.css')) }}">
 
     @stack('styles')
@@ -45,10 +45,8 @@
     $jabatanStatus = $user?->jabatanStatus;
     $hakAkses = $jabatanStatus?->hakAkses;
 
-    // Normalisasi nama role (huruf kecil & ubah spasi jadi underscore)
     $userRole = str_replace(' ', '_', strtolower(trim($hakAkses?->hak ?? '')));
 
-    // Role SuperAdmin & Admin mendapatkan akses penuh ke menu Manajemen & Pengaturan
     $isAdmin = in_array($userRole, ['superadmin', 'admin', 'nusabot', 'full'], true);
     $isGeneral = in_array($userRole, ['general', 'siswa'], true);
     $isOrtu = in_array($userRole, ['orang_tua'], true);
@@ -57,9 +55,7 @@
     if ($isAdmin) {
         try {
             $cutiPending = \App\Models\Cuti::pending()->count();
-        } catch (\Throwable $e) {
-            // kolom status_persetujuan belum ada (migrasi belum dijalankan)
-        }
+        } catch (\Throwable $e) {}
     }
 
     $namaUser = $user?->nama ?? ($user?->name ?? 'User');
@@ -85,11 +81,11 @@
     ];
 
     $menuSetting = [
-    ['url' => route('jam-absensi.edit'), 'label' => 'Jam Absensi', 'active' => request()->is('pengaturan/jam-absensi*')],
-    ['url' => url('jabatan'), 'label' => 'Jabatan', 'active' => request()->is('jabatan*')],
-    ['url' => route('cabang-gedung.index'), 'label' => 'Cabang', 'active' => request()->is('cabang*')],
-    ['url' => route('denda.index'), 'label' => 'Denda', 'active' => request()->is('pengaturan/denda*') || request()->is('denda*')],
-];
+        ['url' => route('jam-absensi.edit'), 'label' => 'Jam Absensi', 'active' => request()->is('pengaturan/jam-absensi*')],
+        ['url' => url('jabatan'), 'label' => 'Jabatan', 'active' => request()->is('jabatan*')],
+        ['url' => route('cabang-gedung.index'), 'label' => 'Cabang', 'active' => request()->is('cabang*')],
+        ['url' => route('denda.index'), 'label' => 'Denda', 'active' => request()->is('pengaturan/denda*') || request()->is('denda*')],
+    ];
     $settingOpen = collect($menuSetting)->contains('active', true);
 @endphp
 
@@ -111,7 +107,13 @@
 
                 {{-- USER --}}
                 <div class="user-card">
-                    <div class="avatar">{{ $inisial }}</div>
+                    <div class="avatar overflow-hidden bg-slate-700 flex items-center justify-center">
+                        @if($user?->foto_profil)
+                            <img src="{{ asset('storage/' . $user->foto_profil) }}" alt="Foto" class="w-full h-full object-cover">
+                        @else
+                            {{ $inisial }}
+                        @endif
+                    </div>
                     <div class="sidebar-text min-w-0 flex-1">
                         <p class="text-[10px] text-slate-400 font-medium leading-none m-0">Login sebagai</p>
                         <p class="text-[13px] font-semibold text-white truncate mt-1 mb-0">{{ $namaUser }}</p>
@@ -209,10 +211,15 @@
                 </div>
 
                 <div class="flex items-center gap-2">
-
                     <div class="relative">
                         <div class="user-chip" id="userChip" role="button" tabindex="0">
-                            <div class="avatar" style="width:2.1rem;height:2.1rem;font-size:.72rem;border-radius:50%">{{ $inisial }}</div>
+                            <div class="avatar overflow-hidden bg-slate-100 flex items-center justify-center text-slate-600" style="width:2.1rem;height:2.1rem;font-size:.72rem;border-radius:50%">
+                                @if($user?->foto_profil)
+                                    <img src="{{ asset('storage/' . $user->foto_profil) }}" alt="Foto" class="w-full h-full object-cover">
+                                @else
+                                    {{ $inisial }}
+                                @endif
+                            </div>
                             <span class="hide-sm text-[13px] font-semibold text-slate-700 max-w-[9rem] truncate">{{ $namaUser }}</span>
                             <i class="bi bi-chevron-down text-[10px] text-slate-400 hide-sm"></i>
                         </div>
@@ -268,7 +275,7 @@
             try { localStorage.setItem('sidebarCollapsed', collapsed ? '1' : '0'); } catch (e) {}
         }
 
-        // pulihkan status sidebar (desktop)
+        // pulihkan status sidebar
         try {
             if (window.innerWidth > 1024 && localStorage.getItem('sidebarCollapsed') === '1') {
                 sidebar.classList.add('is-collapsed');
@@ -291,5 +298,4 @@
         setTodayLabel();
     </script>
 </body>
-
 </html>
