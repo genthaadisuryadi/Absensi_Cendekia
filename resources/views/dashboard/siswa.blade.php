@@ -139,7 +139,7 @@
         </div>
 
         <div class="space-y-3">
-            @forelse ($riwayatTerbaru as$riwayat)
+            @forelse ($riwayatTerbaru as $riwayat)
                 <div class="flex items-center justify-between p-3 rounded-xl border border-slate-50 hover:bg-slate-50 transition-colors">
                     <div class="flex items-center gap-4">
                         <div class="w-12 h-12 rounded-lg bg-indigo-50 flex flex-col items-center justify-center text-indigo-600 font-bold border border-indigo-100/50">
