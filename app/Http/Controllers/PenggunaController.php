@@ -9,6 +9,7 @@ use App\Models\Pengguna;
 use Illuminate\Support\Facades\DB;
 use App\Imports\PenggunaImport;
 use Maatwebsite\Excel\Facades\Excel;
+use Illuminate\Support\Facades\Storage;
 
 class PenggunaController extends Controller
 {
@@ -105,10 +106,19 @@ class PenggunaController extends Controller
             'password'       => 'required|min:8|confirmed',
             'siswa_ids'      => $isOrtu ? 'required|array|min:1' : 'nullable|array',
             'siswa_ids.*'    => 'exists:pengguna,nomor_induk',
+            'foto_profil'    => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048', // Validasi foto
         ], [
             'tag.unique'         => 'Kartu RFID (Tag) ini sudah terdaftar pada pengguna lain.',
             'siswa_ids.required' => 'Silakan pilih minimal 1 Siswa (Anak) untuk akun Orang Tua ini.',
+            'foto_profil.image'  => 'File foto profil harus berupa gambar.',
+            'foto_profil.mimes'  => 'Format gambar harus jpeg, png, jpg, atau gif.',
+            'foto_profil.max'    => 'Ukuran gambar maksimal 2MB.',
         ]);
+
+        $fotoPath = null;
+        if ($request->hasFile('foto_profil')) {
+            $fotoPath = $request->file('foto_profil')->store('foto_profil', 'public');
+        }
 
         $pengguna = Pengguna::create([
             'nomor_induk'    => $request->nomor_induk,
@@ -119,6 +129,7 @@ class PenggunaController extends Controller
             'cabang_gedung'  => $request->cabang_gedung,
             'password'       => Hash::make($request->password),
             'aktif'          => 1,
+            'foto_profil'    => $fotoPath, // Simpan path foto
         ]);
 
         if ($isOrtu && $request->filled('siswa_ids')) {
@@ -194,9 +205,13 @@ class PenggunaController extends Controller
             'password'       => 'nullable|min:8|confirmed',
             'siswa_ids'      => $isOrtu ? 'required|array|min:1' : 'nullable|array',
             'siswa_ids.*'    => 'exists:pengguna,nomor_induk',
+            'foto_profil'    => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048', // Validasi foto
         ], [
             'tag.unique'         => 'Kartu RFID (Tag) ini sudah terdaftar pada pengguna lain.',
             'siswa_ids.required' => 'Silakan pilih minimal 1 Siswa (Anak) untuk akun Orang Tua ini.',
+            'foto_profil.image'  => 'File foto profil harus berupa gambar.',
+            'foto_profil.mimes'  => 'Format gambar harus jpeg, png, jpg, atau gif.',
+            'foto_profil.max'    => 'Ukuran gambar maksimal 2MB.',
         ]);
 
         $dataUpdate = [
@@ -207,6 +222,21 @@ class PenggunaController extends Controller
             'jabatan_status' => $request->jabatan_status,
             'cabang_gedung'  => $request->cabang_gedung,
         ];
+
+        if ($request->hasFile('foto_profil')) {
+            // Hapus foto lama jika ada
+            if ($user->foto_profil && Storage::disk('public')->exists($user->foto_profil)) {
+                Storage::disk('public')->delete($user->foto_profil);
+            }
+            $dataUpdate['foto_profil'] = $request->file('foto_profil')->store('foto_profil', 'public');
+        } elseif ($request->filled('remove_foto') && $request->remove_foto == '1') {
+             // Hapus foto jika user memilih hapus foto
+             if ($user->foto_profil && Storage::disk('public')->exists($user->foto_profil)) {
+                Storage::disk('public')->delete($user->foto_profil);
+            }
+            $dataUpdate['foto_profil'] = null;
+        }
+
 
         if ($request->filled('password')) {
             $dataUpdate['password'] = Hash::make($request->password);
@@ -244,7 +274,14 @@ class PenggunaController extends Controller
     // ====== DESTROY: Hapus Satu Data ======
     public function destroy($id)
     {
-        Pengguna::where('nomor_induk', $id)->delete();
+        $user = Pengguna::where('nomor_induk', $id)->firstOrFail();
+
+        // Hapus foto profil dari storage jika ada
+        if ($user->foto_profil && Storage::disk('public')->exists($user->foto_profil)) {
+            Storage::disk('public')->delete($user->foto_profil);
+        }
+
+        $user->delete();
 
         return redirect()
             ->route('pengguna.index')
@@ -289,8 +326,15 @@ class PenggunaController extends Controller
         }
 
         try {
-            // Hapus semua pengguna dengan nomor_induk yang ada di array $ids
-            Pengguna::whereIn('nomor_induk', $ids)->delete();
+            $users = Pengguna::whereIn('nomor_induk', $ids)->get();
+
+            foreach ($users as $user) {
+                // Hapus foto profil dari storage jika ada
+                if ($user->foto_profil && Storage::disk('public')->exists($user->foto_profil)) {
+                    Storage::disk('public')->delete($user->foto_profil);
+                }
+                $user->delete();
+            }
 
             return redirect()->route('pengguna.index')->with([
                 'successDelete' => true,

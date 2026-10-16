@@ -34,10 +34,29 @@
             </div>
         </div>
 
-        <form action="{{ route('pengguna.store') }}" method="POST">
+        <form action="{{ route('pengguna.store') }}" method="POST" enctype="multipart/form-data">
             @csrf
 
             <div class="form-body">
+                {{-- ===== UPLOAD FOTO ===== --}}
+                <div class="field full flex flex-col items-center justify-center mb-6">
+                    <label class="font-semibold text-slate-700 mb-2 block">Foto Profil (Opsional)</label>
+                    <div class="relative group cursor-pointer" onclick="document.getElementById('foto_profil').click()">
+                        <div id="foto-preview-container" class="w-32 h-32 rounded-full overflow-hidden border-4 border-slate-100 bg-slate-50 flex items-center justify-center shadow-sm relative group-hover:border-indigo-200 transition">
+                            <i class="bi bi-camera text-4xl text-slate-300" id="foto-icon"></i>
+                            <img id="foto-preview" class="w-full h-full object-cover hidden" alt="Preview Foto">
+                            
+                            {{-- Overlay Hover --}}
+                            <div class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition">
+                                <span class="text-white text-xs font-semibold">Ubah Foto</span>
+                            </div>
+                        </div>
+                    </div>
+                    <p class="text-xs text-slate-400 mt-2 text-center">Format: JPG, PNG, GIF (Maks. 2MB)</p>
+                    <input type="file" id="foto_profil" name="foto_profil" class="hidden" accept="image/jpeg,image/png,image/gif" onchange="previewImage(this)">
+                    @error('foto_profil') <div class="field-error mt-1 text-center">{{ $message }}</div> @enderror
+                </div>
+
                 <div class="field full" style="font-size:.7rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#6366f1;">
                     <i class="bi bi-person-lines-fill"></i> Data Utama
                 </div>
@@ -166,6 +185,28 @@
 </div>
 
 <script>
+    // Preview Gambar
+    function previewImage(input) {
+        const icon = document.getElementById('foto-icon');
+        const preview = document.getElementById('foto-preview');
+        
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                preview.src = e.target.result;
+                preview.classList.remove('hidden');
+                icon.classList.add('hidden');
+            }
+            
+            reader.readAsDataURL(input.files[0]);
+        } else {
+            preview.src = "";
+            preview.classList.add('hidden');
+            icon.classList.remove('hidden');
+        }
+    }
+
     document.querySelectorAll('.pw-toggle').forEach(btn => {
         btn.addEventListener('click', () => {
             const input = document.getElementById(btn.dataset.target);

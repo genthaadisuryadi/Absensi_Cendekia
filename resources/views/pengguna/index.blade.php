@@ -19,7 +19,7 @@
         {{-- ================= ALERT PESAN ================= --}}
         @if(session('successAdd') || session('successEdit') || session('successDelete'))
             <div class="p-4 mb-4 text-sm text-green-800 rounded-lg bg-green-50 border border-green-200">
-                <span class="font-medium">Berhasil!</span> Aksi pada data pengguna sukses dilakukan.
+                <span class="font-medium">Berhasil!</span> Aksi menghapus pada data pengguna sukses dilakukan.
             </div>
         @endif
         @if(session('nama'))

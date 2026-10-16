@@ -29,18 +29,57 @@
 
     <div class="card" style="overflow:hidden">
         <div class="profile-banner">
-            <div class="avatar-lg">{{ $inisial }}</div>
+            <div class="avatar-lg">
+                @if($user->foto_profil)
+                    <img src="{{ asset('storage/' . $user->foto_profil) }}" alt="Foto" class="w-full h-full object-cover rounded-full">
+                @else
+                    {{ $inisial }}
+                @endif
+            </div>
             <div class="min-w-0">
                 <div class="text-lg font-extrabold truncate">{{ $user->nama }}</div>
                 <div class="text-sm" style="color:#e0e7ff"><i class="bi bi-person-check"></i> Data Profil Pengguna</div>
             </div>
         </div>
 
-        <form method="POST" action="{{ route('pengguna.update', $user->nomor_induk) }}">
+        <form method="POST" action="{{ route('pengguna.update', $user->nomor_induk) }}" enctype="multipart/form-data">
             @csrf
             @method('PUT')
 
             <div class="card-body" style="padding:1.5rem">
+                {{-- ===== UPLOAD FOTO (EDIT) ===== --}}
+                <div class="field full flex flex-col items-center justify-center mb-6 pb-6 border-b border-slate-100">
+                    <label class="font-semibold text-slate-700 mb-2 block">Foto Profil</label>
+                    <div class="relative group cursor-pointer" onclick="document.getElementById('foto_profil').click()">
+                        <div id="foto-preview-container" class="w-32 h-32 rounded-full overflow-hidden border-4 border-slate-100 bg-slate-50 flex items-center justify-center shadow-sm relative group-hover:border-indigo-200 transition">
+                            
+                            @if($user->foto_profil)
+                                <img id="foto-preview" src="{{ asset('storage/' . $user->foto_profil) }}" class="w-full h-full object-cover" alt="Preview Foto">
+                                <i class="bi bi-camera text-4xl text-slate-300 hidden" id="foto-icon"></i>
+                            @else
+                                <img id="foto-preview" class="w-full h-full object-cover hidden" alt="Preview Foto">
+                                <i class="bi bi-camera text-4xl text-slate-300" id="foto-icon"></i>
+                            @endif
+                            
+                            {{-- Overlay Hover --}}
+                            <div class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition">
+                                <span class="text-white text-xs font-semibold">Ubah Foto</span>
+                            </div>
+                        </div>
+                    </div>
+                    <p class="text-xs text-slate-400 mt-2 text-center">Format: JPG, PNG, GIF (Maks. 2MB)</p>
+                    <input type="file" id="foto_profil" name="foto_profil" class="hidden" accept="image/jpeg,image/png,image/gif" onchange="previewImage(this)">
+                    
+                    @if($user->foto_profil)
+                    <div class="mt-3 flex items-center gap-2">
+                        <input type="checkbox" id="remove_foto" name="remove_foto" value="1" class="rounded border-slate-300 text-rose-500 focus:ring-rose-500 cursor-pointer w-4 h-4" onchange="handleRemoveFoto(this)">
+                        <label for="remove_foto" class="text-sm text-rose-500 font-medium cursor-pointer hover:text-rose-600 transition">Hapus Foto Profil Saat Ini</label>
+                    </div>
+                    @endif
+
+                    @error('foto_profil') <div class="field-error mt-1 text-center">{{ $message }}</div> @enderror
+                </div>
+
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-x-5">
 
                     <div class="field">
@@ -135,6 +174,10 @@
                     </div>
 
                     {{-- OPSIONAL UBAH PASSWORD --}}
+                    <div class="field md:col-span-2" style="margin-top:.5rem;padding-top:1.25rem;border-top:1px dashed #e2e8f0;font-size:.7rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#d97706;">
+                        <i class="bi bi-shield-lock-fill"></i> Ubah Password (Opsional)
+                    </div>
+
                     <div class="field">
                         <label for="password">Password Baru <span class="opt">(Kosongkan jika tidak diubah)</span></label>
                         <div class="input-icon">
@@ -163,6 +206,44 @@
 </div>
 
 <script>
+    // Preview Gambar
+    function previewImage(input) {
+        const icon = document.getElementById('foto-icon');
+        const preview = document.getElementById('foto-preview');
+        const removeCheckbox = document.getElementById('remove_foto');
+        
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                preview.src = e.target.result;
+                preview.classList.remove('hidden');
+                icon.classList.add('hidden');
+                
+                // Jika user memilih file baru, batalkan opsi hapus foto lama
+                if(removeCheckbox) removeCheckbox.checked = false;
+            }
+            
+            reader.readAsDataURL(input.files[0]);
+        }
+    }
+
+    // Handle hapus foto (kembalikan ke icon default)
+    function handleRemoveFoto(checkbox) {
+        if(checkbox.checked) {
+            document.getElementById('foto_profil').value = ''; // Bersihkan input file
+            document.getElementById('foto-preview').classList.add('hidden');
+            document.getElementById('foto-icon').classList.remove('hidden');
+        } else {
+            // Jika batal hapus (dan sebelumnya ada foto), tampilkan ulang dari URL original
+            @if($user->foto_profil)
+                document.getElementById('foto-preview').src = "{{ asset('storage/' . $user->foto_profil) }}";
+                document.getElementById('foto-preview').classList.remove('hidden');
+                document.getElementById('foto-icon').classList.add('hidden');
+            @endif
+        }
+    }
+
     const jabatanSelect = document.getElementById('jabatan_status');
     const nomorIndukWrapper = document.getElementById('field-nomor-induk-wrapper');
     const nomorIndukInput = document.getElementById('nomor_induk');
