@@ -67,15 +67,15 @@
 
             <hr class="border-slate-100 mb-6">
 
-            {{-- AREA PENGATURAN WAKTU (Name input sudah disesuaikan dengan Kategori 1 & 4) --}}
+            {{-- AREA PENGATURAN WAKTU --}}
             <div class="form-body grid grid-cols-1 md:grid-cols-2 gap-6">
 
                 <div class="field">
                     <label for="jam_masuk" class="block font-semibold text-sm mb-2">Jam Masuk (Kategori 1) - Format 24 Jam</label>
                     <div class="relative">
                         <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400"><i class="bi bi-box-arrow-in-right"></i></div>
-                        <input type="text" id="jam_masuk" name="jam_masuk" placeholder="Contoh: 08:00" maxlength="5" class="form-control pl-10 w-full rounded-lg border-slate-200 focus:border-indigo-500 focus:ring-indigo-500"
-                            value="{{ substr($jamSetting['1'] ?? '08:00:00', 0, 5) }}" required>
+                        <input type="text" id="jam_masuk" name="jam_masuk" placeholder="Contoh: 07:00" maxlength="5" class="form-control pl-10 w-full rounded-lg border-slate-200 focus:border-indigo-500 focus:ring-indigo-500"
+                            value="{{ substr($jamSetting['1'] ?? '07:00:00', 0, 5) }}" required>
                     </div>
                 </div>
 
@@ -111,10 +111,10 @@
                     <div class="relative">
                         <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400"><i class="bi bi-hourglass-split"></i></div>
                         <input type="number" id="toleransi" name="toleransi" min="0" max="180" class="form-control pl-10 w-full rounded-lg border-slate-200 focus:border-indigo-500 focus:ring-indigo-500"
-                            value="{{ $jamSetting['toleransi'] ?? 15 }}" required>
+                            value="{{ $jamSetting['toleransi'] ?? 5 }}" required>
                     </div>
                     <small class="text-slate-400 text-xs mt-2 block">
-                        Contoh: Jika Jam Masuk diatur 08:00 dan Toleransi 15 menit, maka absen hingga pukul 08:15 masih dihitung <strong class="text-green-600">Tepat Waktu</strong>.
+                        Contoh: Jika Jam Masuk diatur 07:00 dan Toleransi 5 menit, maka absen hingga pukul 07:05 masih dihitung <strong class="text-green-600">Tepat Waktu</strong>.
                     </small>
                 </div>
 
