@@ -41,7 +41,7 @@
             <div class="flex items-center gap-5 w-full lg:w-auto">
                 <div class="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-white/10 backdrop-blur-xl flex items-center justify-center border border-white/20 text-3xl sm:text-4xl font-black shrink-0 shadow-[0_0_15px_rgba(255,255,255,0.1)] overflow-hidden">
                     @if(Auth::user()->foto_profil)
-                        <img src="{{ asset('storage/' . Auth::user()->foto_profil) }}" alt="Foto" class="w-full h-full object-cover object-center">
+                        <img src="{{ asset('storage/' . Auth::user()->foto_profil) }}" alt="Foto" class="w-full h-full object-cover object-top">
                     @else
                         {{ substr($namaDepan, 0, 1) }}
                     @endif
@@ -228,7 +228,7 @@
                             </form>
                             <script>
                                 function downloadRekap(type) {
-                                    const bulan = document.getElementById('bulanRekap').value;
+                                    const bulan = document.getElementById('bulanRekap' ).value;
                                     const tahun = document.getElementById('tahunRekap').value;
                                     const urlPDF = '{{ route("siswa.rekap.pdf") }}';
                                     const urlExcel = '{{ route("siswa.rekap.excel") }}';
