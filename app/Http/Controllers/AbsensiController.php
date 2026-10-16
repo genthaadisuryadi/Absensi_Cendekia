@@ -47,10 +47,10 @@ class AbsensiController extends Controller
         };
 
         $data = [
-            '1'          => $formatTime($request->jam_masuk),
-            '2'          => $formatTime($request->jam_mulai_istirahat),
-            '3'          => $formatTime($request->jam_selesai_istirahat),
-            '4'          => $formatTime($request->jam_pulang),
+            '2'          => $formatTime($request->jam_masuk),
+            '3'          => $formatTime($request->jam_mulai_istirahat),
+            '4'          => $formatTime($request->jam_selesai_istirahat),
+            '1'          => $formatTime($request->jam_pulang),
             'toleransi'  => (int) $request->toleransi,
             'hari_aktif' => $request->hari_aktif,
         ];
