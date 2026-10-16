@@ -335,4 +335,90 @@ class AbsensiController extends Controller
         $namaAksi = $kategori == 1 ? 'Masuk' : 'Pulang';
         return back()->with('success', "Absen $namaAksi berhasil disimpan!");
     }
+
+    /**
+     * =====================================
+     * HALAMAN ABSENSI GURU & STAFF (KHUSUS SUPERADMIN)
+     * =====================================
+     */
+    public function absensiGuru(Request $request)
+    {
+        // Pastikan hanya Superadmin yang bisa mengakses
+        $user = Auth::user();
+        $hakAkses = DB::table('jabatan_status')
+            ->where('id', $user->jabatan_status)
+            ->value('hak_akses');
+
+        if ($hakAkses !== 1) {
+            abort(403, 'Akses Ditolak. Halaman ini khusus Superadmin.');
+        }
+
+        $cabangGedungs = CabangGedung::where('aktif', 1)->get();
+        
+        // Ambil data absensi yang bukan Siswa dan bukan Orang Tua
+        $query = Absensi::with(['mesin', 'pengguna.cabangGedung'])
+            ->whereHas('pengguna', function ($q) {
+                // Kecualikan Hak Akses 3 (Siswa) dan 4 (Orang Tua)
+                $q->whereHas('jabatanStatus', function ($q2) {
+                    $q2->whereNotIn('hak_akses', [3, 4]);
+                });
+            });
+
+        // Filter berdasarkan tanggal jika ada
+        if ($request->filled('awal') && $request->filled('akhir')) {
+            $query->whereBetween('absen', [
+                $request->awal . ' 00:00:00',
+                $request->akhir . ' 23:59:59',
+            ]);
+        }
+
+        // Filter berdasarkan lokasi cabang jika ada
+        if ($request->filled('cabang_gedung')) {
+            $query->whereHas('pengguna', function ($q) use ($request) {
+                $q->where('cabang_gedung', $request->cabang_gedung);
+            });
+        }
+
+        $absensiGuru = $query->orderBy('absen', 'desc')->get();
+        $jamConfig = $this->getJamConfig();
+        $toleransi = (int) ($jamConfig['toleransi'] ?? 5);
+
+        // Format waktu & status (Logika yang sama dengan index absensi siswa)
+        foreach ($absensiGuru as $absensi) {
+            if (empty($absensi->absen)) continue;
+
+            $waktuAbsen = Carbon::parse($absensi->absen);
+            $cabangModel = $absensi->pengguna->cabangGedung ?? null;
+            $zona = $cabangModel->zona_waktu ?? '1';
+            $zonaWaktu = $zona == '1' ? 'WIB' : ($zona == '2' ? 'WITA' : 'WIT');
+            $seconds = $zona == '1' ? 25200 : ($zona == '2' ? 28800 : 32400);
+
+            $displayWaktu = $waktuAbsen->copy()->addSeconds($seconds);
+
+            $kategoriMap = [
+                1 => 'Masuk', 2 => 'Mulai Istirahat',
+                3 => 'Selesai Istirahat', 4 => 'Pulang'
+            ];
+            $absensi->kategori_label = $kategoriMap[$absensi->kategori] ?? '-';
+            
+            $tgl = $displayWaktu->toDateString();
+            $jam = $jamConfig[(string) $absensi->kategori] ?? null;
+            $isTepat = false;
+
+            if ($jam) {
+                $targetLokal = Carbon::parse($tgl . ' ' . $jam);
+                if (in_array($absensi->kategori, [1, 2, 3])) {
+                    $isTepat = $displayWaktu->lessThanOrEqualTo($targetLokal->copy()->addMinutes($toleransi));
+                } elseif ($absensi->kategori == 4) {
+                    $isTepat = $displayWaktu->greaterThanOrEqualTo($targetLokal);
+                }
+            }
+
+            $absensi->status_label = $isTepat ? 'Tepat Waktu' : 'Terlambat';
+            $absensi->warna = $isTepat ? 'text-green-600' : 'text-red-600';
+            $absensi->display_absen = $displayWaktu->format('Y-m-d H:i:s') . ' ' . $zonaWaktu;
+        }
+
+        return view('absensi.guru', compact('absensiGuru', 'cabangGedungs'));
+    }
 }

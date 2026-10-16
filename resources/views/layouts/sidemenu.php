@@ -19,10 +19,11 @@
             $jabatanInfo = \Illuminate\Support\Facades\DB::table('jabatan_status')
                 ->join('hak_akses', 'jabatan_status.hak_akses', '=', 'hak_akses.id')
                 ->where('jabatan_status.id', Auth::user()->jabatan_status)
-                ->select('hak_akses.hak', 'jabatan_status.jabatan_status')
+                ->select('hak_akses.id as hak_akses_id', 'hak_akses.hak', 'jabatan_status.jabatan_status')
                 ->first();
 
             $rawRole = strtolower($jabatanInfo->hak ?? '');
+            $hakAksesId = $jabatanInfo->hak_akses_id ?? null;
             $namaJabatan = $jabatanInfo->jabatan_status ?? 'User';
         @endphp
 
@@ -101,12 +102,23 @@
                     <span class="sidebar-text truncate">Pengguna</span>
                 </a>
 
+                <!-- Absensi Standar (Siswa) -->
                 <a href="{{ route('absensi.index') }}"
-                   class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 {{ request()->routeIs('absensi.*') ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30 font-semibold' : 'hover:bg-slate-800/70 hover:text-white' }}"
-                   title="Absensi">
+                   class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 {{ request()->routeIs('absensi.index') ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30 font-semibold' : 'hover:bg-slate-800/70 hover:text-white' }}"
+                   title="Absensi Siswa">
                     <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
-                    <span class="sidebar-text truncate">Absensi</span>
+                    <span class="sidebar-text truncate">Absensi Siswa</span>
                 </a>
+
+                <!-- MENU EKSKLUSIF SUPERADMIN: ABSENSI GURU & STAFF -->
+                @if($hakAksesId === 1 || in_array($rawRole, ['superadmin', 'super admin']))
+                <a href="{{ route('absensi.guru') }}"
+                   class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 {{ request()->routeIs('absensi.guru*') ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30 font-semibold' : 'hover:bg-slate-800/70 hover:text-white' }}"
+                   title="Absensi Guru & Staff">
+                    <svg class="w-5 h-5 shrink-0 text-indigo-400 group-hover:text-indigo-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+                    <span class="sidebar-text truncate">Absensi Guru & Staff</span>
+                </a>
+                @endif
 
                 <a href="{{ route('cuti.index') }}"
                    class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 {{ request()->routeIs('cuti.*') ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30 font-semibold' : 'hover:bg-slate-800/70 hover:text-white' }}"
@@ -130,7 +142,7 @@
                 </a>
 
                 <!-- Dropdown Pengaturan -->
-                <div x-data="{ open: {{ request()->routeIs('jabatan.*') || request()->routeIs('cabang-gedung.*') || request()->routeIs('denda.*') ? 'true' : 'false' }} }">
+                <div x-data="{ open: {{ request()->routeIs('jabatan.*') || request()->routeIs('cabang-gedung.*') || request()->routeIs('denda.*') || request()->routeIs('jam-absensi.edit') ? 'true' : 'false' }} }">
                     <button @click="open = !open"
                             type="button"
                             class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 hover:bg-slate-800/70 hover:text-white cursor-pointer"
@@ -143,19 +155,24 @@
                     </button>
 
                     <div x-show="open" x-collapse class="pl-9 pr-2 py-1 space-y-1 sidebar-text">
+                        <a href="{{ route('jam-absensi.edit') }}"
+                           class="block px-3 py-2 rounded-lg text-xs font-medium transition-colors {{ request()->routeIs('jam-absensi.*') ? 'text-blue-400 font-semibold bg-slate-800/50' : 'text-slate-400 hover:text-white hover:bg-slate-800/30' }}">
+- Waktu & Hari Presensi
+                        </a>
+
                         <a href="{{ route('jabatan.index') }}"
                            class="block px-3 py-2 rounded-lg text-xs font-medium transition-colors {{ request()->routeIs('jabatan.*') ? 'text-blue-400 font-semibold bg-slate-800/50' : 'text-slate-400 hover:text-white hover:bg-slate-800/30' }}">
-                            - Jabatan / Status
+- Jabatan / Status
                         </a>
 
                         <a href="{{ route('cabang-gedung.index') }}"
                            class="block px-3 py-2 rounded-lg text-xs font-medium transition-colors {{ request()->routeIs('cabang-gedung.*') ? 'text-blue-400 font-semibold bg-slate-800/50' : 'text-slate-400 hover:text-white hover:bg-slate-800/30' }}">
-                            - Cabang / Gedung
+- Cabang / Gedung
                         </a>
 
                         <a href="{{ route('denda.index') }}"
                            class="block px-3 py-2 rounded-lg text-xs font-medium transition-colors {{ request()->routeIs('denda.*') ? 'text-blue-400 font-semibold bg-slate-800/50' : 'text-slate-400 hover:text-white hover:bg-slate-800/30' }}">
-                            - Denda
+- Denda
                         </a>
                     </div>
                 </div>

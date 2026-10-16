@@ -71,6 +71,16 @@ Route::middleware(['auth', 'hakAkses:general,superadmin,admin'])->group(function
 
 /*
 |--------------------------------------------------------------------------
+| Eksklusif SuperAdmin Routes (Role: SuperAdmin)
+|--------------------------------------------------------------------------
+*/
+Route::middleware(['auth', 'hakAkses:superadmin'])->group(function () {
+    // Absensi Guru & Staff (Hanya Superadmin)
+    Route::get('/absensi-guru', [AbsensiController::class, 'absensiGuru'])->name('absensi.guru');
+});
+
+/*
+|--------------------------------------------------------------------------
 | Admin & SuperAdmin Routes (Role: SuperAdmin & Admin)
 |--------------------------------------------------------------------------
 */
