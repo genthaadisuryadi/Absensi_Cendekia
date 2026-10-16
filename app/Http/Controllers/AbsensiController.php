@@ -29,12 +29,6 @@ class AbsensiController extends Controller
     /**
      * SIMPAN PENGATURAN JAM ABSENSI (UPDATE: HARI AKTIF)
      */
-    public function editJam()
-    {
-        $jamSetting = $this->getJamConfig();
-        return view('absensi.jam_setting', compact('jamSetting'));
-    }
-
     public function updateJam(Request $request)
     {
         $request->validate([
@@ -52,11 +46,6 @@ class AbsensiController extends Controller
             return strlen($t) === 5 ? $t . ':00' : $t;
         };
 
-        // KUNCI ARRAY DISESUAIKAN:
-        // '1' = Jam Masuk
-        // '2' = Jam Mulai Istirahat
-        // '3' = Jam Selesai Istirahat
-        // '4' = Jam Pulang
         $data = [
             '1'          => $formatTime($request->jam_masuk),
             '2'          => $formatTime($request->jam_mulai_istirahat),
@@ -77,9 +66,8 @@ class AbsensiController extends Controller
     private function isHariLibur(): bool
     {
         $jamConfig = $this->getJamConfig();
-        $hariAktif = $jamConfig['hari_aktif'] ?? ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat']; // Default
+        $hariAktif = $jamConfig['hari_aktif'] ?? ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat'];
         
-        // Translasi nama hari Inggris (Carbon) ke Indonesia
         $namaHariInggrisKeIndo = [
             'Monday' => 'Senin', 'Tuesday' => 'Selasa', 'Wednesday' => 'Rabu',
             'Thursday' => 'Kamis', 'Friday' => 'Jumat', 'Saturday' => 'Sabtu', 'Sunday' => 'Minggu'
@@ -87,7 +75,6 @@ class AbsensiController extends Controller
         
         $hariIni = $namaHariInggrisKeIndo[Carbon::now()->format('l')];
 
-        // Jika hari ini TIDAK ada di dalam array hari_aktif, berarti libur (Return True)
         return !in_array($hariIni, $hariAktif);
     }
 
@@ -245,7 +232,6 @@ class AbsensiController extends Controller
      */
     public function storeFromMachine(Request $request)
     {
-        // BLOKIR JIKA HARI INI TIDAK DICENTANG DI PENGATURAN (LIBUR)
         if ($this->isHariLibur()) {
             return response()->json([
                 'status'  => 'error',
@@ -310,7 +296,6 @@ class AbsensiController extends Controller
      */
     public function storeSiswa(Request $request)
     {
-        // BLOKIR JIKA HARI INI TIDAK DICENTANG DI PENGATURAN (LIBUR)
         if ($this->isHariLibur()) {
             return back()->with('error', 'Hari ini diatur sebagai hari Libur. Anda tidak dapat melakukan presensi.');
         }
