@@ -23,7 +23,7 @@
                 {{-- FOTO PROFIL BESAR --}}
                 <div class="relative z-10 w-28 h-28 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-500 text-white flex items-center justify-center text-4xl font-extrabold mb-5 shadow-xl ring-8 ring-white overflow-hidden">
                     @if($user->foto_profil)
-                        <img src="{{ asset('storage/' . $user->foto_profil) }}" alt="Foto Profil" class="w-full h-full object-cover">
+                        <img src="{{ asset('storage/' . $user->foto_profil) }}" alt="Foto Profil" class="w-full h-full object-cover object-top">
                     @else
                         {{ substr($user->nama, 0, 1) }}
                     @endif
