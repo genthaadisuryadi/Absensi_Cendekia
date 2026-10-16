@@ -42,13 +42,12 @@
         <form action="{{ route('jam-absensi.update') }}" method="POST">
             @csrf
             
-            {{-- AREA PENGATURAN HARI AKTIF (Fitur Baru) --}}
+            {{-- AREA PENGATURAN HARI AKTIF --}}
             <div class="mb-8">
                 <h3 class="font-bold text-slate-800 mb-3"><i class="bi bi-calendar-check text-indigo-500 mr-2"></i>Hari Masuk / Aktif</h3>
                 <p class="text-xs text-slate-500 mb-4">Centang hari di bawah ini untuk mengizinkan absensi. Jika tidak dicentang, mesin scanner dan absen manual akan otomatis ditolak karena dianggap Libur.</p>
                 
                 @php
-                    // Ambil data hari aktif (default: Senin-Jumat jika kosong)
                     $hariAktif = $jamSetting['hari_aktif'] ?? ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat'];
                     $daftarHari = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
                 @endphp
@@ -60,7 +59,6 @@
                         <span class="text-sm font-semibold {{ in_array($hari, $hariAktif) ? 'text-indigo-700' : 'text-slate-600' }} peer-checked:text-indigo-700">
                             {{ $hari }}
                         </span>
-                        {{-- Indikator centang kecil --}}
                         <i class="bi bi-check-circle-fill absolute top-1 right-1 text-indigo-500 text-[10px] {{ in_array($hari, $hariAktif) ? 'block' : 'hidden' }} peer-checked:block"></i>
                     </label>
                     @endforeach
@@ -69,7 +67,7 @@
 
             <hr class="border-slate-100 mb-6">
 
-            {{-- AREA PENGATURAN WAKTU --}}
+            {{-- AREA PENGATURAN WAKTU (Format 24 Jam Dipaksa Lewat CSS) --}}
             <div class="form-body grid grid-cols-1 md:grid-cols-2 gap-6">
 
                 <div class="field">
@@ -77,7 +75,7 @@
                     <div class="relative">
                         <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400"><i class="bi bi-box-arrow-in-right"></i></div>
                         <input type="time" id="jam_masuk" name="jam_masuk" class="form-control pl-10 w-full rounded-lg border-slate-200 focus:border-indigo-500 focus:ring-indigo-500"
-                            value="{{ substr($jamSetting['1'] ?? '08:00:00', 0, 5) }}" required>
+                            value="{{ substr($jamSetting['1'] ?? '08:00:00', 0, 5) }}" required style="color-scheme: light;">
                     </div>
                 </div>
 
@@ -86,7 +84,7 @@
                     <div class="relative">
                         <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400"><i class="bi bi-box-arrow-right"></i></div>
                         <input type="time" id="jam_pulang" name="jam_pulang" class="form-control pl-10 w-full rounded-lg border-slate-200 focus:border-indigo-500 focus:ring-indigo-500"
-                            value="{{ substr($jamSetting['4'] ?? '17:00:00', 0, 5) }}" required>
+                            value="{{ substr($jamSetting['4'] ?? '17:00:00', 0, 5) }}" required style="color-scheme: light;">
                     </div>
                 </div>
 
@@ -95,7 +93,7 @@
                     <div class="relative">
                         <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400"><i class="bi bi-cup-hot"></i></div>
                         <input type="time" id="jam_mulai_istirahat" name="jam_mulai_istirahat" class="form-control pl-10 w-full rounded-lg border-slate-200 focus:border-indigo-500 focus:ring-indigo-500"
-                            value="{{ substr($jamSetting['2'] ?? '12:00:00', 0, 5) }}" required>
+                            value="{{ substr($jamSetting['2'] ?? '12:00:00', 0, 5) }}" required style="color-scheme: light;">
                     </div>
                 </div>
 
@@ -104,7 +102,7 @@
                     <div class="relative">
                         <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400"><i class="bi bi-alarm"></i></div>
                         <input type="time" id="jam_selesai_istirahat" name="jam_selesai_istirahat" class="form-control pl-10 w-full rounded-lg border-slate-200 focus:border-indigo-500 focus:ring-indigo-500"
-                            value="{{ substr($jamSetting['3'] ?? '13:00:00', 0, 5) }}" required>
+                            value="{{ substr($jamSetting['3'] ?? '13:00:00', 0, 5) }}" required style="color-scheme: light;">
                     </div>
                 </div>
 
@@ -131,7 +129,6 @@
     </div>
 </div>
 
-{{-- Skrip ringan untuk mengubah warna border checkbox saat di-klik --}}
 <script>
     document.querySelectorAll('input[name="hari_aktif[]"]').forEach(box => {
         box.addEventListener('change', function() {
