@@ -67,10 +67,10 @@
                 <div class="relative w-16 h-16 sm:w-20 sm:h-20 shrink-0 flex items-center justify-center z-10">
                     <svg class="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
                         <path class="text-white/10" stroke-width="3.5" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                        <path class="text-emerald-400 drop-shadow-[0_0_6px_rgba(52,211,153,0.6)] transition-all duration-1000 ease-out" stroke-dasharray="{{ min($persentaseKehadiran, 100) }}, 100" stroke-width="3.5" stroke-linecap="round" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                        <path class="text-emerald-400 drop-shadow-[0_0_6px_rgba(52,211,153,0.6)] transition-all duration-1000 ease-out" stroke-dasharray="{{ min($persentaseKehadiran ?? 0, 100) }}, 100" stroke-width="3.5" stroke-linecap="round" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
                     </svg>
                     <div class="absolute inset-0 flex items-center justify-center flex-col">
-                        <span class="text-base sm:text-lg font-black text-white leading-none">{{ round($persentaseKehadiran) }}%</span>
+                        <span class="text-base sm:text-lg font-black text-white leading-none">{{ round($persentaseKehadiran ?? 0) }}%</span>
                     </div>
                 </div>
 
@@ -78,11 +78,11 @@
                 <div class="flex-1 z-10">
                     <h4 class="text-[10px] sm:text-xs font-black text-blue-200 uppercase tracking-widest mb-1.5 opacity-90">Kehadiran Bulan Ini</h4>
                     <div class="flex items-end gap-1.5 mb-1">
-                        <span class="text-xl sm:text-2xl font-black text-white leading-none">{{ $totalHariMasuk }}</span>
-                        <span class="text-xs sm:text-sm text-blue-100 font-semibold mb-0.5">dari {{ $totalHariEfektif }} Hari</span>
+                        <span class="text-xl sm:text-2xl font-black text-white leading-none">{{ $totalHariMasuk ?? 0 }}</span>
+                        <span class="text-xs sm:text-sm text-blue-100 font-semibold mb-0.5">dari {{ $totalHariEfektif ?? 0 }} Hari</span>
                     </div>
                     <div class="w-full bg-black/20 h-1.5 rounded-full mt-2 overflow-hidden">
-                        <div class="bg-gradient-to-r from-emerald-400 to-cyan-300 h-full rounded-full" style="width: {{ min($persentaseKehadiran, 100) }}%;"></div>
+                        <div class="bg-gradient-to-r from-emerald-400 to-cyan-300 h-full rounded-full" style="width: {{ min($persentaseKehadiran ?? 0, 100) }}%;"></div>
                     </div>
                 </div>
             </div>
@@ -159,13 +159,13 @@
                     @php
                         $status =$riwayat->status_label ?? 'Tepat Waktu';
                         if (stripos($status, 'Terlambat') !== false) {
-                            $badgeClass = 'bg-amber-50 text-amber-700 border-amber-200';$iconClass = 'bi-exclamation-triangle-fill';
+                            $badgeClass = 'bg-amber-50 text-amber-700 border-amber-200';$iconClass  = 'bi-exclamation-triangle-fill';
                         } elseif (stripos($status, 'Pulang Cepat') !== false) {
-                            $badgeClass = 'bg-blue-50 text-blue-700 border-blue-200';$iconClass = 'bi-info-circle-fill';
+                            $badgeClass = 'bg-blue-50 text-blue-700 border-blue-200';$iconClass  = 'bi-info-circle-fill';
                         } elseif (stripos($status, 'Izin') !== false \vert{}\vert{} stripos($status, 'Sakit') !== false) {
-                            $badgeClass = 'bg-sky-50 text-sky-700 border-sky-200';$iconClass = 'bi-file-medical-fill';
+                            $badgeClass = 'bg-sky-50 text-sky-700 border-sky-200';$iconClass  = 'bi-file-medical-fill';
                         } else {
-                            $badgeClass = 'bg-emerald-50 text-emerald-700 border-emerald-200';$iconClass = 'bi-check-circle-fill';
+                            $badgeClass = 'bg-emerald-50 text-emerald-700 border-emerald-200';$iconClass  = 'bi-check-circle-fill';
                         }
                     @endphp
                     
