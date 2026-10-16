@@ -206,18 +206,47 @@ class AbsensiController extends Controller
 
     public function dashboard(Request $request)
     {
-        $today = now()->format('Y-m-d');
+        // 1. CEK SIAPA YANG SEDANG LOGIN
+        $user = Auth::user();
+        $hakAksesObj = DB::table('jabatan_status')
+            ->join('hak_akses', 'jabatan_status.hak_akses', '=', 'hak_akses.id')
+            ->where('jabatan_status.id', $user->jabatan_status)
+            ->select('hak_akses.id', 'hak_akses.hak')
+            ->first();
 
+        // Tentukan apakah user ini Superadmin (ID 1 atau namanya superadmin)
+        $isSuperAdmin = ($hakAksesObj && ($hakAksesObj->id == 1 || strtolower($hakAksesObj->hak) === 'superadmin' || strtolower($hakAksesObj->hak) === 'super admin'));
+
+        $today = now()->format('Y-m-d');
+        $monthStart = now()->startOfMonth()->format('Y-m-d');
+        $monthEnd = now()->endOfMonth()->format('Y-m-d');
+
+        // 2. BUAT ATURAN FILTER BERDASARKAN ROLE
+        $filterPengguna = function ($q) use ($isSuperAdmin) {
+            $q->whereHas('jabatanStatus', function ($q2) use ($isSuperAdmin) {
+                $q2->whereHas('hakAkses', function ($q3) use ($isSuperAdmin) {
+                    if ($isSuperAdmin) {
+                        // Superadmin: Lihat SEMUA data kecuali Orang Tua
+                        $q3->whereNotIn('hak', ['orang_tua', 'orang tua', 'ortu']);
+                    } else {
+                        // Admin Biasa: HANYA lihat data Siswa
+                        $q3->whereIn('hak', ['siswa', 'general']);
+                    }
+                });
+            });
+        };
+
+        // 3. TERAPKAN FILTER KE QUERY HARI INI
         $todayStats = Absensi::whereDate('absen', $today)
+            ->whereHas('pengguna', $filterPengguna)
             ->selectRaw('kategori, count(*) as total')
             ->groupBy('kategori')
             ->get()
             ->pluck('total', 'kategori');
 
-        $monthStart = now()->startOfMonth()->format('Y-m-d');
-        $monthEnd = now()->endOfMonth()->format('Y-m-d');
-
+        // 4. TERAPKAN FILTER KE QUERY GRAFIK BULANAN
         $monthlyStats = Absensi::whereBetween('absen', [$monthStart, $monthEnd])
+            ->whereHas('pengguna', $filterPengguna)
             ->selectRaw('DATE(absen) as tanggal, count(*) as total')
             ->groupBy('tanggal')
             ->orderBy('tanggal')
