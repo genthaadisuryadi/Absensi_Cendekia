@@ -80,7 +80,9 @@ class AbsensiController extends Controller
     }
 
     /**
-     * LIST + FILTER ABSENSI
+     * =====================================
+     * LIST + FILTER ABSENSI (KHUSUS SISWA)
+     * =====================================
      */
     public function index(Request $request)
     {
@@ -88,10 +90,8 @@ class AbsensiController extends Controller
         $jamConfig     = $this->getJamConfig();
         $toleransi     = (int) ($jamConfig['toleransi'] ?? 15);
 
-        $query = Absensi::with(['mesin', 'pengguna.cabangGedung'])
-            ->whereHas('pengguna', function ($q) {
-                $q->where('jabatan_status', '!=', 4);
-            });
+        // Ambil SEMUA data absensi terlebih dahulu (beserta relasinya)
+        $query = Absensi::with(['mesin', 'pengguna.cabangGedung']);
 
         if ($request->filled('awal') && $request->filled('akhir')) {
             $query->whereBetween('absen', [
@@ -110,9 +110,20 @@ class AbsensiController extends Controller
             });
         }
 
-        $absensis = $query->orderBy('absen', 'desc')->get();
+        $allAbsensi = $query->orderBy('absen', 'desc')->get();
+        $absensis = collect(); // Koleksi khusus untuk menampung Siswa
 
-        foreach ($absensis as $absensi) {
+        foreach ($allAbsensi as $absensi) {
+            if (empty($absensi->absen) || empty($absensi->pengguna)) continue;
+
+            // Dapatkan nama hak akses (huruf kecil)
+            $hakAksesUser = strtolower($absensi->pengguna->jabatanStatus->hakAkses->hak ?? '');
+
+            // FILTER MUTLAK: Hanya masukkan ke tabel jika hak aksesnya "siswa" atau "general"
+            if (!in_array($hakAksesUser, ['siswa', 'general'])) {
+                continue; // Tendang data Admin, Superadmin, Internal, Pegawai, dll.
+            }
+
             $absensi->status = null;
             $absensi->status_label = null;
             $absensi->warna = 'text-gray-700';
@@ -120,12 +131,7 @@ class AbsensiController extends Controller
             $absensi->display_batas = null;
             $absensi->selisih_menit = null;
 
-            if (empty($absensi->absen)) {
-                continue;
-            }
-
             $waktuAbsen = Carbon::parse($absensi->absen);
-
             $cabangModel = $absensi->pengguna->cabangGedung ?? CabangGedung::find($absensi->pengguna->cabang_gedung ?? null);
             $zona = $cabangModel->zona_waktu ?? '1';
             $zonaWaktu = $zona == '1' ? 'WIB' : ($zona == '2' ? 'WITA' : 'WIT');
@@ -148,7 +154,6 @@ class AbsensiController extends Controller
 
             if ($jam) {
                 $targetLokal = Carbon::parse($tgl . ' ' . $jam);
-
                 switch ((string) $absensi->kategori) {
                     case '1': 
                     case '2': 
@@ -168,6 +173,8 @@ class AbsensiController extends Controller
             $absensi->display_absen = $displayWaktu->format('Y-m-d H:i:s') . ' ' . $zonaWaktu;
             $absensi->display_batas = $targetLokal ? $targetLokal->format('Y-m-d H:i:s') : null;
             $absensi->selisih_menit = $targetLokal ? round(abs($displayWaktu->diffInSeconds($targetLokal)) / 60) : null;
+
+            $absensis->push($absensi);
         }
 
         if ($request->wantsJson()) {
@@ -259,7 +266,7 @@ class AbsensiController extends Controller
         if (!$pengguna) {
             return response()->json([
                 'status'  => 'error',
-                'message' => 'Kartu tidak terdaftar untuk Siswa',
+                'message' => 'Kartu tidak terdaftar',
             ], 404);
         }
 
@@ -293,7 +300,7 @@ class AbsensiController extends Controller
     }
 
     /**
-     * SIMPAN ABSENSI MANUAL SISWA (WEB)
+     * SIMPAN ABSENSI MANUAL (WEB)
      */
     public function storeSiswa(Request $request)
     {
@@ -356,17 +363,9 @@ class AbsensiController extends Controller
 
         $cabangGedungs = CabangGedung::where('aktif', 1)->get();
         
-        // Ambil data absensi KECUALI yang nama jabatannya mengandung kata "Siswa" atau "Orang Tua"
-        $query = Absensi::with(['mesin', 'pengguna.cabangGedung'])
-            ->whereHas('pengguna', function ($q) {
-                $q->whereHas('jabatanStatus', function ($q2) {
-                    $q2->whereRaw('LOWER(jabatan_status) NOT LIKE ?', ['%siswa%'])
-                       ->whereRaw('LOWER(jabatan_status) NOT LIKE ?', ['%orang tua%'])
-                       ->whereRaw('LOWER(jabatan_status) NOT LIKE ?', ['%ortu%']);
-                });
-            });
+        // Ambil SEMUA data absensi terlebih dahulu (beserta relasinya)
+        $query = Absensi::with(['mesin', 'pengguna.cabangGedung']);
 
-        // Filter berdasarkan tanggal jika ada
         if ($request->filled('awal') && $request->filled('akhir')) {
             $query->whereBetween('absen', [
                 $request->awal . ' 00:00:00',
@@ -374,20 +373,28 @@ class AbsensiController extends Controller
             ]);
         }
 
-        // Filter berdasarkan lokasi cabang jika ada
         if ($request->filled('cabang_gedung')) {
             $query->whereHas('pengguna', function ($q) use ($request) {
                 $q->where('cabang_gedung', $request->cabang_gedung);
             });
         }
 
-        $absensiGuru = $query->orderBy('absen', 'desc')->get();
+        $allAbsensi = $query->orderBy('absen', 'desc')->get();
+        $absensiGuru = collect(); // Koleksi khusus untuk menampung Guru/Staff/Internal/Admin
+
         $jamConfig = $this->getJamConfig();
         $toleransi = (int) ($jamConfig['toleransi'] ?? 5);
 
-        // Format waktu & status (Logika yang sama dengan index absensi)
-        foreach ($absensiGuru as $absensi) {
-            if (empty($absensi->absen)) continue;
+        foreach ($allAbsensi as $absensi) {
+            if (empty($absensi->absen) || empty($absensi->pengguna)) continue;
+
+            // Dapatkan nama hak akses (huruf kecil)
+            $hakAksesUser = strtolower($absensi->pengguna->jabatanStatus->hakAkses->hak ?? '');
+
+            // FILTER MUTLAK: Tendang Siswa dan Orang Tua
+            if (in_array($hakAksesUser, ['siswa', 'general', 'orang_tua', 'orang tua', 'ortu'])) {
+                continue; // Jika statusnya siswa/orang_tua, lewati.
+            }
 
             $waktuAbsen = Carbon::parse($absensi->absen);
             $cabangModel = $absensi->pengguna->cabangGedung ?? null;
@@ -419,6 +426,8 @@ class AbsensiController extends Controller
             $absensi->status_label = $isTepat ? 'Tepat Waktu' : 'Terlambat';
             $absensi->warna = $isTepat ? 'text-green-600' : 'text-red-600';
             $absensi->display_absen = $displayWaktu->format('Y-m-d H:i:s') . ' ' . $zonaWaktu;
+
+            $absensiGuru->push($absensi);
         }
 
         return view('absensi.guru', compact('absensiGuru', 'cabangGedungs'));
