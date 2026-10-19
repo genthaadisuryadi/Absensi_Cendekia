@@ -29,7 +29,10 @@ class DashboardController extends Controller
         if (Storage::disk('local')->exists('jam_absensi.json')) {
             $saved = json_decode(Storage::disk('local')->get('jam_absensi.json'), true);
             if (is_array($saved)) {
-                return array_merge($default, $saved);
+                // PERBAIKAN MUTLAK: Menggunakan array_replace, BUKAN array_merge!
+                // array_merge adalah penyebab utama index angka bergeser posisinya.
+                // array_replace akan menimpa data pada key yang sama persis tanpa menggeser angka!
+                return array_replace($default, $saved);
             }
         }
 
@@ -200,7 +203,6 @@ class DashboardController extends Controller
             ->whereNotNull('absen');
 
         if ($isSuperAdmin) {
-            // Superadmin melihat rekap semua (Siswa + Guru & Staff), KECUALI Orang Tua
             $query->whereHas('pengguna', function ($q) {
                 $q->whereHas('jabatanStatus', function ($q2) {
                     $q2->whereHas('hakAkses', function ($q3) {
@@ -209,7 +211,6 @@ class DashboardController extends Controller
                 });
             });
         } else {
-            // Admin biasa HANYA melihat rekap Siswa / General
             $query->whereHas('pengguna', function ($q) {
                 $q->whereHas('jabatanStatus', function ($q2) {
                     $q2->whereHas('hakAkses', function ($q3) {
