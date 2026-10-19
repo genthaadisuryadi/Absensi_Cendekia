@@ -16,14 +16,14 @@
 
     <div class="p-6 space-y-6">
 
-        {{-- ================= ALERT PESAN ================= --}}
-        @if(session('successAdd') || session('successEdit') || session('successDelete'))
-            <div class="p-4 mb-4 text-sm text-green-800 rounded-lg bg-green-50 border border-green-200">
-                <span class="font-medium">Berhasil!</span> Aksi menghapus pada data pengguna sukses dilakukan.
+        {{-- ================= ALERT PESAN (SUDAH DIPERBAIKI) ================= --}}
+        @if(session('successAdd') || session('successEdit') || session('successDelete') || session('successImport'))
+            <div class="p-4 mb-4 text-sm {{ session('successDelete') ? 'text-red-800 bg-red-50 border-red-200' : 'text-green-800 bg-green-50 border-green-200' }} rounded-lg border">
+                <span class="font-medium">Berhasil!</span> {{ session('pesanNotif') }}
             </div>
         @endif
         @if(session('nama'))
-            <div class="p-4 mb-4 text-sm text-green-800 rounded-lg bg-green-50 border border-green-200">
+            <div class="p-4 mb-4 text-sm text-blue-800 rounded-lg bg-blue-50 border border-blue-200">
                 <span class="font-medium">Detail:</span> {{ session('nama') }}
             </div>
         @endif
@@ -38,13 +38,19 @@
             <h1 class="text-2xl font-semibold text-gray-800">Kelola Pengguna</h1>
 
             <div class="flex flex-wrap items-center gap-2">
-                <!-- Tombol Import Excel -->
-                <button type="button" onclick="document.getElementById('modalImport').classList.remove('hidden')"
+                <!-- Tombol Import Excel Siswa -->
+                <button type="button" onclick="openImportModal('siswa')"
                     class="inline-flex items-center gap-2 px-4 py-2 bg-emerald-500 text-white text-sm font-medium rounded-lg hover:bg-emerald-600 shadow-sm transition">
-                    <i class="bi bi-file-earmark-excel"></i> Import Siswa
+                    <i class="bi bi-person-lines-fill"></i> Import Siswa
+                </button>
+
+                <!-- Tombol Import Excel Guru/Staff (BARU) -->
+                <button type="button" onclick="openImportModal('guru')"
+                    class="inline-flex items-center gap-2 px-4 py-2 bg-teal-600 text-white text-sm font-medium rounded-lg hover:bg-teal-700 shadow-sm transition">
+                    <i class="bi bi-briefcase-fill"></i> Import Guru
                 </button>
                 
-                <!-- Tombol Cek Pengguna (Mesin RFID Modal) -->
+                <!-- Tombol Cek Pengguna -->
                 <button type="button" id="btnCekKartu"
                     class="inline-flex items-center gap-2 px-4 py-2 border border-blue-600 text-blue-600 text-sm font-medium rounded-lg hover:bg-blue-50 transition shadow-sm">
                     <i class="bi bi-upc-scan"></i> Cek Kartu
@@ -65,7 +71,7 @@
             <form id="bulkDeleteForm" action="{{ route('pengguna.bulk_destroy') }}" method="POST">
                 @csrf
                 
-                <!-- Kontainer Hapus Massal (Hanya muncul saat ada checkbox yang dicentang) -->
+                <!-- Kontainer Hapus Massal -->
                 <div id="bulkDeleteContainer" class="hidden mb-4 p-3 bg-rose-50 border border-rose-200 rounded-lg flex items-center justify-between">
                     <span class="text-rose-700 font-medium text-sm">
                         <span id="selectedCount" class="font-bold">0</span> Pengguna terpilih
@@ -79,7 +85,6 @@
                     <thead class="bg-gray-50 text-gray-600 uppercase text-[11px] font-bold tracking-wider">
                         <tr>
                             <th class="py-3 text-center w-10">
-                                <!-- Checkbox Pilih Semua -->
                                 <input type="checkbox" id="checkAll" class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer w-4 h-4">
                             </th>
                             <th class="py-3">NIS / NIP</th>
@@ -141,7 +146,7 @@
                 </table>
             </form>
 
-            {{-- Form Tersembunyi Khusus untuk Hapus Satuan (Mencegah bentrok form massal) --}}
+            {{-- Form Tersembunyi Khusus untuk Hapus Satuan --}}
             <form id="singleDeleteForm" method="POST" class="hidden">
                 @csrf
                 @method('DELETE')
@@ -149,20 +154,23 @@
         </div>
     </div>
 
-    {{-- ================= MODAL IMPORT EXCEL ================= --}}
+    {{-- ================= MODAL IMPORT EXCEL (DINAMIS UNTUK SISWA & GURU) ================= --}}
     <div id="modalImport" class="fixed inset-0 z-[100] hidden">
-        <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" onclick="document.getElementById('modalImport').classList.add('hidden')"></div>
+        <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" onclick="closeImportModal()"></div>
         
         <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden p-6 transform transition-all">
             <div class="flex items-center justify-between mb-4 border-b border-slate-100 pb-3">
-                <h3 class="text-lg font-bold text-slate-800"><i class="bi bi-cloud-arrow-up-fill text-indigo-500 mr-2"></i> Import Data Siswa</h3>
-                <button type="button" onclick="document.getElementById('modalImport').classList.add('hidden')" class="text-slate-400 hover:text-rose-500 transition">
+                <h3 id="modalImportTitle" class="text-lg font-bold text-slate-800"><i class="bi bi-cloud-arrow-up-fill text-indigo-500 mr-2"></i> Import Data</h3>
+                <button type="button" onclick="closeImportModal()" class="text-slate-400 hover:text-rose-500 transition">
                     <i class="bi bi-x-lg"></i>
                 </button>
             </div>
 
             <form action="{{ route('pengguna.import') }}" method="POST" enctype="multipart/form-data">
                 @csrf
+                <!-- Input hidden untuk membedakan Guru dan Siswa saat dikirim ke PenggunaImport -->
+                <input type="hidden" name="tipe_import" id="inputTipeImport" value="siswa">
+
                 <div class="mb-4">
                     <label class="block text-sm font-semibold text-slate-700 mb-2">Pilih File Excel / CSV</label>
                     <input type="file" name="file_excel" accept=".xlsx, .xls, .csv" required
@@ -171,13 +179,16 @@
                     <div class="mt-4 p-3 bg-slate-50 border border-slate-200 rounded-xl">
                         <p class="text-[11px] text-slate-600 leading-relaxed">
                             Gunakan header berikut pada baris pertama file Excel Anda (huruf kecil semua):
-                            <br><code class="text-indigo-600 font-bold tracking-wider mt-1 block">nis, nama, kelas, tag_rfid, id_cabang</code>
+                            <br>
+                            <!-- Header Info Dinamis -->
+                            <code id="headerInfoSiswa" class="text-indigo-600 font-bold tracking-wider mt-1 block">nis, nama, kelas, tag_rfid, id_cabang, id_jabatan</code>
+                            <code id="headerInfoGuru" class="text-indigo-600 font-bold tracking-wider mt-1 hidden">nip, nama, tag_rfid, id_cabang, id_jabatan</code>
                         </p>
                     </div>
                 </div>
                 
                 <div class="flex justify-end gap-2 mt-6 pt-4 border-t border-slate-100">
-                    <button type="button" onclick="document.getElementById('modalImport').classList.add('hidden')" class="px-5 py-2 text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition">Batal</button>
+                    <button type="button" onclick="closeImportModal()" class="px-5 py-2 text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition">Batal</button>
                     <button type="submit" class="px-5 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-md shadow-indigo-200 transition">
                         <i class="bi bi-upload mr-1"></i> Upload
                     </button>
@@ -220,8 +231,27 @@
     <script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.colVis.min.js"></script>
 
     <script>
+        // FUNGSI BUKA TUTUP MODAL IMPORT (Dinamis Siswa / Guru)
+        function openImportModal(tipe) {
+            document.getElementById('modalImport').classList.remove('hidden');
+            document.getElementById('inputTipeImport').value = tipe;
+            
+            if (tipe === 'guru') {
+                document.getElementById('modalImportTitle').innerHTML = '<i class="bi bi-briefcase-fill text-teal-500 mr-2"></i> Import Data Guru / Staff';
+                document.getElementById('headerInfoSiswa').classList.add('hidden');
+                document.getElementById('headerInfoGuru').classList.remove('hidden');
+            } else {
+                document.getElementById('modalImportTitle').innerHTML = '<i class="bi bi-person-lines-fill text-indigo-500 mr-2"></i> Import Data Siswa';
+                document.getElementById('headerInfoGuru').classList.add('hidden');
+                document.getElementById('headerInfoSiswa').classList.remove('hidden');
+            }
+        }
+
+        function closeImportModal() {
+            document.getElementById('modalImport').classList.add('hidden');
+        }
+
         $(function() {
-            // Hancurkan DataTable jika sudah ada (mencegah error re-inisialisasi)
             if ($.fn.DataTable.isDataTable('#penggunaTable')) {
                 $('#penggunaTable').DataTable().destroy();
             }
@@ -237,23 +267,17 @@
                     { extend: 'print', title: 'Data Pengguna' },
                     'colvis'
                 ],
-                // Mencegah sorting pada kolom ke-0 (kolom checkbox)
                 columnDefs: [ { orderable: false, targets: 0 } ],
-                // Urutkan default berdasarkan kolom ke-1 (NIS)
                 order: [[ 1, 'asc' ]], 
                 language: {
                     search: "Cari data:",
                     lengthMenu: "Tampilkan _MENU_ data",
                     info: "Menampilkan _START_ - _END_ dari _TOTAL_ data",
-                    paginate: {
-                        previous: "Sebelumnya",
-                        next: "Selanjutnya"
-                    }
+                    paginate: { previous: "Sebelumnya", next: "Selanjutnya" }
                 }
             });
 
-            /* ===== LOGIKA HAPUS MULTI DATA (LINTAS HALAMAN & SEARCH) ===== */
-            // Array global untuk menyimpan ID yang dicentang
+            /* ===== LOGIKA HAPUS MULTI DATA ===== */
             var selectedIds = [];
 
             function updateBulkContainer() {
@@ -265,35 +289,23 @@
                 }
             }
 
-            // Aksi saat checkbox individual diklik
             $('#penggunaTable tbody').on('change', '.checkItem', function() {
                 var id = $(this).val();
-                
                 if(this.checked) {
-                    // Jika dicentang, masukkan ke array jika belum ada
-                    if(selectedIds.indexOf(id) === -1) {
-                        selectedIds.push(id);
-                    }
+                    if(selectedIds.indexOf(id) === -1) selectedIds.push(id);
                 } else {
-                    // Jika uncentang, hapus dari array
                     selectedIds = selectedIds.filter(item => item !== id);
                     $('#checkAll').prop('checked', false);
                 }
-                
                 updateBulkContainer();
             });
 
-            // Aksi saat checkbox "Pilih Semua" diklik
             $('#checkAll').on('change', function() {
                 var isChecked = $(this).prop('checked');
-                
-                // Cari HANYA baris yang sedang tampil di hasil pencarian/halaman saat ini
                 var rows = table.rows({ 'search': 'applied', 'page': 'current' }).nodes();
                 
-                // Centang/uncentang checkbox di layar
                 $('input[type="checkbox"]', rows).prop('checked', isChecked);
 
-                // Update array global
                 $('input[type="checkbox"]', rows).each(function() {
                     var id = $(this).val();
                     if(isChecked) {
@@ -302,14 +314,11 @@
                         selectedIds = selectedIds.filter(item => item !== id);
                     }
                 });
-
                 updateBulkContainer();
             });
 
-            // Saat pindah halaman/search, pastikan checkbox yang ada di array tetap dicentang di layar
             table.on('draw', function() {
                 var rows = table.rows({ 'search': 'applied', 'page': 'current' }).nodes();
-                
                 var allChecked = true;
                 var hasCheckbox = false;
 
@@ -322,36 +331,23 @@
                     }
                 });
 
-                if(hasCheckbox && allChecked) {
-                    $('#checkAll').prop('checked', true);
-                } else {
-                    $('#checkAll').prop('checked', false);
-                }
+                if(hasCheckbox && allChecked) $('#checkAll').prop('checked', true);
+                else $('#checkAll').prop('checked', false);
             });
 
-            // Ganti fungsi submit form Hapus Massal agar mengirim data dari Array
             window.confirmBulkDelete = function() {
                 if(selectedIds.length === 0) {
-                    alert('Tidak ada pengguna yang dipilih.');
-                    return;
+                    alert('Tidak ada pengguna yang dipilih.'); return;
                 }
-
-                if(confirm('Apakah Anda yakin ingin menghapus ' + selectedIds.length + ' pengguna yang dipilih beserta data absensinya? Aksi ini tidak dapat dibatalkan.')) {
-                    
+                if(confirm('Apakah Anda yakin ingin menghapus ' + selectedIds.length + ' pengguna yang dipilih beserta data absensinya?')) {
                     var form = $('#bulkDeleteForm');
-                    
-                    // Bersihkan input checkbox HTML lama (mencegah bentrok)
                     form.find('input[name="ids[]"]').remove();
-
-                    // Tambahkan input hidden baru murni dari array selectedIds
                     $.each(selectedIds, function(index, id) {
                         form.append('<input type="hidden" name="ids[]" value="' + id + '">');
                     });
-                    
                     form.submit();
                 }
             };
-
 
             /* ===== LOGIKA MODAL CEK KARTU RFID ===== */
             $('#btnCekKartu').on('click', function() {
@@ -369,7 +365,6 @@
                 if(e.which === 13) { 
                     e.preventDefault();
                     let tag = $(this).val();
-                    
                     if(tag.trim() === '') return;
 
                     $('#hasilScan').html('<span class="text-blue-500 font-bold"><i class="bi bi-arrow-repeat animate-spin inline-block"></i> Mengecek data...</span>');
