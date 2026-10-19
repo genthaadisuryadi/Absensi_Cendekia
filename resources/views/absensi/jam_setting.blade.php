@@ -67,7 +67,7 @@
 
             <hr class="border-slate-100 mb-6">
 
-            {{-- AREA PENGATURAN WAKTU (SUDAH DIURUTKAN SECARA KRONOLOGIS) --}}
+            {{-- AREA PENGATURAN WAKTU (SUDAH DIURUTKAN 1, 2, 3, 4) --}}
             <div class="form-body grid grid-cols-1 md:grid-cols-2 gap-6">
 
                 <!-- 1. JAM MASUK -->
