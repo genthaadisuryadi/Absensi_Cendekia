@@ -47,12 +47,14 @@ class AbsensiController extends Controller
             return strlen($t) === 5 ? $t . ':00' : $t;
         };
 
+        // PASTIKAN URUTAN INI SESUAI DENGAN KATEGORI DI DATABASE
+        // 1 = Masuk, 2 = Mulai Istirahat, 3 = Selesai Istirahat, 4 = Pulang
         $data = [
             '1'          => $formatTime($request->jam_masuk),
             '2'          => $formatTime($request->jam_mulai_istirahat),
             '3'          => $formatTime($request->jam_selesai_istirahat),
             '4'          => $formatTime($request->jam_pulang),
-            'toleransi'  =>  (int) $request->toleransi,
+            'toleransi'  => (int) $request->toleransi,
             'hari_aktif' => $request->hari_aktif,
         ];
 
