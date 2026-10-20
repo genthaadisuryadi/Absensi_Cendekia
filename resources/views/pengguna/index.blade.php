@@ -208,10 +208,10 @@
             </div>
 
             <div class="p-6 text-center">
-                <p class="text-sm text-slate-500 mb-4">Silakan <b>tap kartu RFID</b> ke mesin <i>scanner</i> Anda.</p>
+                <p class="text-sm text-slate-500 mb-4">Silakan <b>masukkan nomor kartu RFID</b> ke mesin <i>scanner</i> Anda.</p>
                 
                 <div class="mb-5">
-                    <input type="text" id="inputScanKartu" placeholder="Menunggu scan kartu..." 
+                    <input type="text" id="inputScanKartu" placeholder="Menunggu nomor kartu..." 
                         class="w-full text-center font-mono text-xl py-3 px-4 border-2 border-blue-200 rounded-xl focus:border-blue-500 focus:ring-0 transition" autocomplete="off">
                 </div>
 

@@ -131,25 +131,24 @@
                         @error('cabang_gedung') <div class="field-error">{{ $message }}</div> @enderror
                     </div>
 
-                    {{-- FIELD KHUSUS SISWA: KELAS & TAG RFID --}}
-                    <div class="field md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-x-5" id="field-siswa-wrapper" style="display:none; padding:0; border:none; margin:0;">
-                        <div class="field" style="margin-top:0;">
-                            <label for="kelas">Kelas <span class="opt">(Khusus Siswa)</span></label>
-                            <div class="input-icon">
-                                <i class="bi bi-mortarboard"></i>
-                                <input type="text" id="kelas" name="kelas" class="form-control @error('kelas') is-invalid @enderror" value="{{ old('kelas', $user->kelas) }}" placeholder="Contoh: 10 RPL 1">
-                            </div>
-                            @error('kelas') <div class="field-error">{{ $message }}</div> @enderror
+                    {{-- FIELD TAG RFID (KINI TERPISAH DAN BERLAKU UNTUK SEMUA KECUALI ORTU) --}}
+                    <div class="field" id="field-tag-wrapper" style="display:none;">
+                        <label for="tag">Tag Kartu RFID</label>
+                        <div class="input-icon">
+                            <i class="bi bi-upc-scan"></i>
+                            <input type="text" id="tag" name="tag" class="form-control @error('tag') is-invalid @enderror" value="{{ old('tag', $user->tag) }}" placeholder="Kode kartu / tag pengguna">
                         </div>
+                        @error('tag') <div class="field-error">{{ $message }}</div> @enderror
+                    </div>
 
-                        <div class="field" style="margin-top:0;">
-                            <label for="tag">Tag Kartu RFID <span class="opt">(Khusus Siswa)</span></label>
-                            <div class="input-icon">
-                                <i class="bi bi-upc-scan"></i>
-                                <input type="text" id="tag" name="tag" class="form-control @error('tag') is-invalid @enderror" value="{{ old('tag', $user->tag) }}" placeholder="Kode kartu / tag pengguna">
-                            </div>
-                            @error('tag') <div class="field-error">{{ $message }}</div> @enderror
+                    {{-- FIELD KELAS (HANYA UNTUK SISWA) --}}
+                    <div class="field" id="field-kelas-wrapper" style="display:none;">
+                        <label for="kelas">Kelas <span class="opt">(Khusus Siswa)</span></label>
+                        <div class="input-icon">
+                            <i class="bi bi-mortarboard"></i>
+                            <input type="text" id="kelas" name="kelas" class="form-control @error('kelas') is-invalid @enderror" value="{{ old('kelas', $user->kelas) }}" placeholder="Contoh: 10 RPL 1">
                         </div>
+                        @error('kelas') <div class="field-error">{{ $message }}</div> @enderror
                     </div>
 
                     {{-- FIELD KHUSUS ORANG TUA: PILIH ANAK (SISWA) DENGAN SEARCH --}}
@@ -214,7 +213,6 @@
 </div>
 
 <script>
-    // Fitur Live Search Siswa
     function filterSiswaList() {
         const input = document.getElementById('searchSiswaInput');
         const filter = input.value.toLowerCase();
@@ -231,7 +229,6 @@
         });
     }
 
-    // Preview Gambar
     function previewImage(input) {
         const icon = document.getElementById('foto-icon');
         const preview = document.getElementById('foto-preview');
@@ -269,7 +266,11 @@
     const jabatanSelect = document.getElementById('jabatan_status');
     const nomorIndukWrapper = document.getElementById('field-nomor-induk-wrapper');
     const nomorIndukInput = document.getElementById('nomor_induk');
-    const siswaWrapper = document.getElementById('field-siswa-wrapper');
+    
+    // Perubahan logika Wrapper
+    const tagWrapper = document.getElementById('field-tag-wrapper');
+    const kelasWrapper = document.getElementById('field-kelas-wrapper');
+
     const kelasInput = document.getElementById('kelas');
     const tagInput = document.getElementById('tag');
     const anakWrapper = document.getElementById('field-anak-wrapper');
@@ -279,31 +280,24 @@
         const role = selectedOption ? (selectedOption.getAttribute('data-role') || '') : '';
         const val = jabatanSelect.value;
 
-        const isOrtu = role.includes('orang_tua') || role.includes('orang tua') || val === '4';
+        const isOrtu = role.includes('orang_tua') || role.includes('orang tua') || role.includes('ortu') || val === '4';
         const isSiswa = role.includes('general') || role.includes('siswa') || val === '3';
 
         if (isOrtu) {
             nomorIndukWrapper.style.display = 'none';
-            nomorIndukInput.removeAttribute('required');
-
-            siswaWrapper.style.display = 'none';
-            kelasInput.value = '';
-            tagInput.value = '';
-
+            tagWrapper.style.display = 'none';
+            kelasWrapper.style.display = 'none';
             anakWrapper.style.display = 'block';
         } else if (isSiswa) {
             nomorIndukWrapper.style.display = 'block';
-            nomorIndukInput.setAttribute('required', 'required');
-
-            siswaWrapper.style.display = 'grid';
+            tagWrapper.style.display = 'block';
+            kelasWrapper.style.display = 'block';
             anakWrapper.style.display = 'none';
         } else {
+            // Untuk Guru / Staff / Admin
             nomorIndukWrapper.style.display = 'block';
-            nomorIndukInput.setAttribute('required', 'required');
-
-            siswaWrapper.style.display = 'none';
-            kelasInput.value = '';
-            tagInput.value = '';
+            tagWrapper.style.display = 'block'; // RFID Dinyalakan
+            kelasWrapper.style.display = 'none'; // Kelas Dimatikan
             anakWrapper.style.display = 'none';
         }
     }

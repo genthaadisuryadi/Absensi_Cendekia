@@ -8,7 +8,8 @@
     @php
         $pageTitle = trim($__env->yieldContent('title')) ?: ucwords(str_replace(['-', '_'], ' ', request()->segment(1) ?? 'Dashboard'));
     @endphp
-    <title>{{ $pageTitle }} · Absensi Cendekia</title>
+    <!-- Menggunakan sintaks unescape untuk mencegah &amp muncul di title browser -->
+    <title>{!! $pageTitle !!} · Absensi Cendekia</title>
 
     {{-- Font --}}
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -42,63 +43,81 @@
 
 @php
     $user = auth()->user();
-    $jabatanStatus = $user?->jabatanStatus;
-    $hakAkses = $jabatanStatus?->hakAkses;
 
-    $userRole = str_replace(' ', '_', strtolower(trim($hakAkses?->hak ?? '')));
-    $hakAksesId = $hakAkses?->id ?? null;
+    // PERBAIKAN: Dibungkus dengan pengecekan user agar tidak error saat diakses tanpa login
+    if ($user) {
+        $jabatanStatus = $user->jabatanStatus;
+        $hakAkses = $jabatanStatus?->hakAkses;
 
-    $isAdmin = in_array($userRole, ['superadmin', 'admin', 'nusabot', 'full'], true);
-    $isSuperAdmin = ($hakAksesId == 1 || in_array($userRole, ['superadmin', 'nusabot', 'full']));
-    $isGeneral = in_array($userRole, ['general', 'siswa'], true);
-    $isOrtu = in_array($userRole, ['orang_tua'], true);
+        $userRole = str_replace(' ', '_', strtolower(trim($hakAkses?->hak ?? '')));
+        $hakAksesId = $hakAkses?->id ?? null;
 
-    $cutiPending = 0;
-    if ($isAdmin) {
-        try {
-            $cutiPending = \App\Models\Cuti::pending()->count();
-        } catch (\Throwable $e) {}
+        $isAdmin = in_array($userRole, ['superadmin', 'admin', 'nusabot', 'full'], true);
+        $isSuperAdmin = ($hakAksesId == 1 || in_array($userRole, ['superadmin', 'nusabot', 'full']));
+        $isGeneral = in_array($userRole, ['general', 'siswa'], true);
+        $isOrtu = in_array($userRole, ['orang_tua'], true);
+
+        $cutiPending = 0;
+        if ($isAdmin) {
+            try {
+                $cutiPending = \App\Models\Cuti::pending()->count();
+            } catch (\Throwable $e) {}
+        }
+
+        $namaUser = $user->nama ?? ($user->name ?? 'User');
+        $inisial = strtoupper(mb_substr($namaUser, 0, 2));
+
+        $dashboardUrl = $isOrtu ? route('dashboard.ortu') : url('dashboard');
+
+        $menuUtama = [
+            [
+                'url'    => $dashboardUrl,
+                'icon'   => 'bi-grid-1x2-fill',
+                'label'  => 'Dashboard',
+                'active' => request()->is('dashboard*') || request()->is('/'),
+            ],
+        ];
+
+        // MEMBANGUN ARRAY MENU MANAJEMEN SECARA DINAMIS
+        $menuAdmin = [
+            ['url' => url('pengguna'), 'icon' => 'bi-people-fill', 'label' => 'Pengguna', 'active' => request()->is('pengguna*')],
+        ];
+
+        // Menu Absensi Siswa (Untuk Admin & Superadmin)
+        $menuAdmin[] = ['url' => url('absensi'), 'icon' => 'bi-person-check-fill', 'label' => 'Absensi Siswa', 'active' => request()->is('absensi') || request()->is('absensi/*') && !request()->is('absensi/pengguna*')];
+
+        // Menu Absensi Guru & Staff (KHUSUS SUPERADMIN)
+        if ($isSuperAdmin) {
+            $menuAdmin[] = ['url' => route('absensi.guru'), 'icon' => 'bi-person-badge-fill', 'label' => 'Absensi Guru & Staff', 'active' => request()->routeIs('absensi.guru*')];
+        }
+
+        // Sisa Menu Manajemen
+        $menuAdmin[] = ['url' => url('cuti'), 'icon' => 'bi-calendar-event-fill', 'label' => 'Cuti', 'active' => request()->is('cuti*'), 'badge' => $cutiPending];
+        $menuAdmin[] = ['url' => url('libur_khusus'), 'icon' => 'bi-calendar2-heart-fill', 'label' => 'Tanggal Libur', 'active' => request()->is('libur_khusus*')];
+        $menuAdmin[] = ['url' => url('mesin'), 'icon' => 'bi-cpu-fill', 'label' => 'Mesin', 'active' => request()->is('mesin*')];
+
+        $menuSetting = [
+            ['url' => route('jam-absensi.edit'), 'label' => 'Jam Absensi', 'active' => request()->is('pengaturan/jam-absensi*')],
+            ['url' => url('jabatan'), 'label' => 'Jabatan', 'active' => request()->is('jabatan*')],
+            ['url' => route('cabang-gedung.index'), 'label' => 'Cabang', 'active' => request()->is('cabang*')],
+            ['url' => route('denda.index'), 'label' => 'Denda', 'active' => request()->is('pengaturan/denda*') || request()->is('denda*')],
+        ];
+        $settingOpen = collect($menuSetting)->contains('active', true);
+    } else {
+        // Fallback Default jika belum login (Tamu / Guest)
+        $isAdmin = false;
+        $isSuperAdmin = false;
+        $isGeneral = false;
+        $isOrtu = false;
+        $namaUser = 'Tamu';
+        $inisial = 'TM';
+        $menuUtama = [];
+        $menuAdmin = [];
+        $menuSetting = [];
+        $settingOpen = false;
+        $jabatanStatus = null;
+        $userRole = 'guest';
     }
-
-    $namaUser = $user?->nama ?? ($user?->name ?? 'User');
-    $inisial = strtoupper(mb_substr($namaUser, 0, 2));
-
-    $dashboardUrl = $isOrtu ? route('dashboard.ortu') : url('dashboard');
-
-    $menuUtama = [
-        [
-            'url'    => $dashboardUrl,
-            'icon'   => 'bi-grid-1x2-fill',
-            'label'  => 'Dashboard',
-            'active' => request()->is('dashboard*') || request()->is('/'),
-        ],
-    ];
-
-    // MEMBANGUN ARRAY MENU MANAJEMEN SECARA DINAMIS
-    $menuAdmin = [
-        ['url' => url('pengguna'), 'icon' => 'bi-people-fill', 'label' => 'Pengguna', 'active' => request()->is('pengguna*')],
-    ];
-
-    // Menu Absensi Siswa (Untuk Admin & Superadmin)
-    $menuAdmin[] = ['url' => url('absensi'), 'icon' => 'bi-person-check-fill', 'label' => 'Absensi Siswa', 'active' => request()->is('absensi') || request()->is('absensi/*') && !request()->is('absensi/pengguna*')];
-
-    // Menu Absensi Guru & Staff (KHUSUS SUPERADMIN)
-    if ($isSuperAdmin) {
-        $menuAdmin[] = ['url' => route('absensi.guru'), 'icon' => 'bi-person-badge-fill', 'label' => 'Absensi Guru & Staff', 'active' => request()->routeIs('absensi.guru*')];
-    }
-
-    // Sisa Menu Manajemen
-    $menuAdmin[] = ['url' => url('cuti'), 'icon' => 'bi-calendar-event-fill', 'label' => 'Cuti', 'active' => request()->is('cuti*'), 'badge' => $cutiPending];
-    $menuAdmin[] = ['url' => url('libur_khusus'), 'icon' => 'bi-calendar2-heart-fill', 'label' => 'Tanggal Libur', 'active' => request()->is('libur_khusus*')];
-    $menuAdmin[] = ['url' => url('mesin'), 'icon' => 'bi-cpu-fill', 'label' => 'Mesin', 'active' => request()->is('mesin*')];
-
-    $menuSetting = [
-        ['url' => route('jam-absensi.edit'), 'label' => 'Jam Absensi', 'active' => request()->is('pengaturan/jam-absensi*')],
-        ['url' => url('jabatan'), 'label' => 'Jabatan', 'active' => request()->is('jabatan*')],
-        ['url' => route('cabang-gedung.index'), 'label' => 'Cabang', 'active' => request()->is('cabang*')],
-        ['url' => route('denda.index'), 'label' => 'Denda', 'active' => request()->is('pengaturan/denda*') || request()->is('denda*')],
-    ];
-    $settingOpen = collect($menuSetting)->contains('active', true);
 @endphp
 
 <body class="antialiased">
@@ -197,12 +216,14 @@
 
             {{-- LOGOUT --}}
             <div class="p-3" style="border-top:1px solid rgba(255,255,255,.06)">
+                @auth
                 <form method="POST" action="{{ route('logout') }}">
                     @csrf
                     <button type="submit" class="logout-btn" title="Logout">
                         <i class="bi bi-box-arrow-right"></i><span class="sidebar-text">Keluar</span>
                     </button>
                 </form>
+                @endauth
             </div>
         </aside>
 
@@ -217,7 +238,7 @@
                         <i class="bi bi-layout-sidebar-inset"></i>
                     </button>
                     <div class="min-w-0">
-                        <h1 class="page-title truncate">{{ $pageTitle }}</h1>
+                        <h1 class="page-title truncate">{!! $pageTitle !!}</h1>
                         <p class="page-sub hide-sm" id="today-label">&nbsp;</p>
                     </div>
                 </div>
@@ -240,11 +261,16 @@
                                 <div class="text-[13px] font-bold text-slate-800 truncate">{{ $namaUser }}</div>
                                 <div class="text-[11px] text-slate-500">{{ $jabatanStatus?->jabatan_status ?? ucfirst($userRole ?? 'Pengguna') }}</div>
                             </div>
+                            
+                            @auth
                             <a href="{{ route('profile.index') }}"><i class="bi bi-person-circle"></i> Profil Saya</a>
                             <form method="POST" action="{{ route('logout') }}">
                                 @csrf
                                 <button type="submit" style="color:#e11d48"><i class="bi bi-box-arrow-right"></i> Keluar</button>
                             </form>
+                            @else
+                            <a href="{{ route('login') }}"><i class="bi bi-box-arrow-in-right"></i> Login</a>
+                            @endauth
                         </div>
                     </div>
                 </div>
