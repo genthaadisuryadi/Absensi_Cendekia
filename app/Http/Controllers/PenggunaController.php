@@ -34,14 +34,13 @@ class PenggunaController extends Controller
     {
         $request->validate([
             'file_excel' => 'required|mimes:xlsx,csv,xls',
-            'tipe_import' => 'required|in:siswa,guru', // Tambahan Validasi Tipe Import
+            'tipe_import' => 'required|in:siswa,guru', 
         ], [
             'file_excel.required' => 'Silakan pilih file Excel terlebih dahulu.',
             'file_excel.mimes'    => 'Format file harus berupa .xlsx atau .csv',
         ]);
 
         try {
-            // Karena kita belum mengubah isi PenggunaImport, kita anggap fungsi Importnya berjalan secara default
             Excel::import(new PenggunaImport, $request->file('file_excel'));
             
             $tipeTeks = $request->tipe_import == 'guru' ? 'Guru/Staff' : 'Siswa';
@@ -87,8 +86,8 @@ class PenggunaController extends Controller
             ->value('hak_akses.hak');
 
         $roleNormalized = str_replace(' ', '_', strtolower(trim($hakAkses ?? '')));
+        $isOrtu  = in_array($roleNormalized, ['orang_tua', 'ortu'], true) || (int) $request->jabatan_status === 4;
         $isSiswa = in_array($roleNormalized, ['general', 'siswa'], true) || (int) $request->jabatan_status === 3;
-        $isOrtu  = in_array($roleNormalized, ['orang_tua'], true) || (int) $request->jabatan_status === 4;
 
         if ($isOrtu && !$request->filled('nomor_induk')) {
             do {
@@ -98,7 +97,9 @@ class PenggunaController extends Controller
             $request->merge(['nomor_induk' => $generatedId]);
         }
 
-        $tagValue   = ($isSiswa && $request->filled('tag')) ? trim($request->tag) : '';
+        // PERBAIKAN: Semua peran KECUALI Orang Tua boleh memiliki Tag RFID
+        $tagValue   = (!$isOrtu && $request->filled('tag')) ? trim($request->tag) : '';
+        // Kelas tetap khusus Siswa
         $kelasValue = ($isSiswa && $request->filled('kelas')) ? trim($request->kelas) : null;
 
         $request->validate([
@@ -191,14 +192,16 @@ class PenggunaController extends Controller
             ->value('hak_akses.hak');
 
         $roleNormalized = str_replace(' ', '_', strtolower(trim($hakAkses ?? '')));
+        $isOrtu  = in_array($roleNormalized, ['orang_tua', 'ortu'], true) || (int) $request->jabatan_status === 4;
         $isSiswa = in_array($roleNormalized, ['general', 'siswa'], true) || (int) $request->jabatan_status === 3;
-        $isOrtu  = in_array($roleNormalized, ['orang_tua'], true) || (int) $request->jabatan_status === 4;
 
         if ($isOrtu || !$request->filled('nomor_induk')) {
             $request->merge(['nomor_induk' => $user->nomor_induk]);
         }
 
-        $tagValue   = ($isSiswa && $request->filled('tag')) ? trim($request->tag) : '';
+        // PERBAIKAN: Semua peran KECUALI Orang Tua boleh memiliki Tag RFID
+        $tagValue   = (!$isOrtu && $request->filled('tag')) ? trim($request->tag) : '';
+        // Kelas tetap khusus Siswa
         $kelasValue = ($isSiswa && $request->filled('kelas')) ? trim($request->kelas) : null;
 
         $request->validate([
