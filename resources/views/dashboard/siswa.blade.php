@@ -157,41 +157,43 @@
         </div>
 
         <div class="space-y-3">
-            @forelse ($riwayatTerbaru as$riwayat)
-                <div class="flex items-center justify-between p-3 rounded-xl border border-slate-50 hover:bg-slate-50 transition-colors">
-                    <div class="flex items-center gap-4">
-                        <div class="w-12 h-12 rounded-lg bg-indigo-50 flex flex-col items-center justify-center text-indigo-600 font-bold border border-indigo-100/50">
-                            <span class="text-sm leading-none">{{ \Carbon\Carbon::parse($riwayat->absen)->format('d') }}</span>
-                            <span class="text-[10px] uppercase leading-none mt-1">{{ \Carbon\Carbon::parse($riwayat->absen)->format('M') }}</span>
-                        </div>
-                        <div>
-                            <div class="font-semibold text-slate-800">
-                                {{ $riwayat->kategori_label ?? 'Presensi' }}
+            @if(isset($riwayatTerbaru) && count($riwayatTerbaru) > 0)
+                @foreach ($riwayatTerbaru as$riwayat)
+                    <div class="flex items-center justify-between p-3 rounded-xl border border-slate-50 hover:bg-slate-50 transition-colors">
+                        <div class="flex items-center gap-4">
+                            <div class="w-12 h-12 rounded-lg bg-indigo-50 flex flex-col items-center justify-center text-indigo-600 font-bold border border-indigo-100/50">
+                                <span class="text-sm leading-none">{{ \Carbon\Carbon::parse($riwayat->absen)->format('d') }}</span>
+                                <span class="text-[10px] uppercase leading-none mt-1">{{ \Carbon\Carbon::parse($riwayat->absen)->format('M') }}</span>
                             </div>
-                            <div class="text-xs text-slate-500 flex items-center gap-1 mt-1">
-                                <i class="bi bi-clock"></i> {{ \Carbon\Carbon::parse($riwayat->absen)->format('H:i') }} WIB
+                            <div>
+                                <div class="font-semibold text-slate-800">
+                                    {{ $riwayat->kategori_label ?? 'Presensi' }}
+                                </div>
+                                <div class="text-xs text-slate-500 flex items-center gap-1 mt-1">
+                                    <i class="bi bi-clock"></i> {{ \Carbon\Carbon::parse($riwayat->absen)->format('H:i') }} WIB
+                                </div>
                             </div>
                         </div>
+                        
+                        @php
+                            $status =$riwayat->status_label ?? 'Tepat Waktu';
+                            if (stripos($status, 'Terlambat') !== false) {
+                                $badgeClass = 'bg-amber-50 text-amber-700 border-amber-200';$iconClass  = 'bi-exclamation-triangle-fill';
+                            } elseif (stripos($status, 'Pulang Cepat') !== false) {
+                                $badgeClass = 'bg-blue-50 text-blue-700 border-blue-200';$iconClass  = 'bi-info-circle-fill';
+                            } elseif (stripos($status, 'Izin') !== false \vert{}\vert{} stripos($status, 'Sakit') !== false) {
+                                $badgeClass = 'bg-sky-50 text-sky-700 border-sky-200';$iconClass  = 'bi-file-medical-fill';
+                            } else {
+                                $badgeClass = 'bg-emerald-50 text-emerald-700 border-emerald-200';$iconClass  = 'bi-check-circle-fill';
+                            }
+                        @endphp
+                        
+                        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border {{ $badgeClass }}">
+                            <i class="bi {{ $iconClass }}"></i> {{ $status }}
+                        </span>
                     </div>
-                    
-                    @php
-                        $status =$riwayat->status_label ?? 'Tepat Waktu';
-                        if (stripos($status, 'Terlambat') !== false) {
-                            $badgeClass = 'bg-amber-50 text-amber-700 border-amber-200';$iconClass  = 'bi-exclamation-triangle-fill';
-                        } elseif (stripos($status, 'Pulang Cepat') !== false) {
-                            $badgeClass = 'bg-blue-50 text-blue-700 border-blue-200';$iconClass  = 'bi-info-circle-fill';
-                        } elseif (stripos($status, 'Izin') !== false \vert{}\vert{} stripos($status, 'Sakit') !== false) {
-                            $badgeClass = 'bg-sky-50 text-sky-700 border-sky-200';$iconClass  = 'bi-file-medical-fill';
-                        } else {
-                            $badgeClass = 'bg-emerald-50 text-emerald-700 border-emerald-200';$iconClass  = 'bi-check-circle-fill';
-                        }
-                    @endphp
-                    
-                    <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border {{ $badgeClass }}">
-                        <i class="bi {{ $iconClass }}"></i> {{ $status }}
-                    </span>
-                </div>
-            @empty
+                @endforeach
+            @else
                 <div class="text-center py-8">
                     <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-slate-50 border border-slate-100 mb-3 text-slate-300">
                         <i class="bi bi-card-list text-3xl"></i>
@@ -199,7 +201,7 @@
                     <div class="text-slate-500 font-medium">Belum ada aktivitas presensi terbaru.</div>
                     <div class="text-xs text-slate-400 mt-1">Presensi yang kamu lakukan akan muncul di sini.</div>
                 </div>
-            @endforelse
+            @endif
         </div>
     </div>
 
