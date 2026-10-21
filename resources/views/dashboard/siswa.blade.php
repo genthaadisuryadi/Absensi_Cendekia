@@ -1,18 +1,25 @@
 @extends('layouts.app')
 
 @php
-    $hakAksesObj = auth()->user()?->jabatanStatus?->hakAkses;
-    $namaHakAkses = strtolower(trim($hakAksesObj->hak ?? ''));
-    $jabatan = auth()->user()?->jabatanStatus?->jabatan_status ?? 'Siswa';
+    $user = auth()->user();
+    
+    // Tarik data jabatan dan hak akses dengan aman menggunakan Query Builder
+    $jabatanRow = \Illuminate\Support\Facades\DB::table('jabatan_status')
+        ->leftJoin('hak_akses', 'jabatan_status.hak_akses', '=', 'hak_akses.id')
+        ->where('jabatan_status.id', $user->jabatan_status ?? 0)
+        ->select('jabatan_status.jabatan_status', 'hak_akses.hak')
+        ->first();
+
+    $jabatan =$jabatanRow->jabatan_status ?? 'Siswa';
+    $namaHakAkses = strtolower(trim($jabatanRow->hak ?? ''));
     
     // Tentukan Judul Berdasarkan Hak Akses
     if (in_array($namaHakAkses, ['general', 'siswa']) || strtolower($jabatan) === 'siswa') {$judulDashboard = 'Dashboard Siswa';
     } else {
-        // Jika Guru / Staff (Internal)
         $judulDashboard = 'Dashboard ' . ucfirst($jabatan);
     }
     
-    $namaDepan = explode(' ', trim(auth()->user()->nama ?? auth()->user()->name ?? 'Siswa'))[0];
+    $namaDepan = explode(' ', trim($user->nama ?? $user->name ?? 'Siswa'))[0];
 @endphp
 
 @section('title', $judulDashboard)
