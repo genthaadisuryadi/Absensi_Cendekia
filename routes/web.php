@@ -52,13 +52,14 @@ Route::middleware(['auth', 'hakAkses:orang_tua'])->group(function () {
 
 /*
 |--------------------------------------------------------------------------
-| Siswa / General User Routes (Role: General / Siswa)
+| Siswa, Guru & Staff (Role: General / Siswa / Internal)
 |--------------------------------------------------------------------------
 */
-Route::middleware(['auth', 'hakAkses:general,superadmin,admin'])->group(function () {
+// PERBAIKAN: Menambahkan 'internal' ke middleware ini agar Guru/Staff bisa akses Rekap & Izin
+Route::middleware(['auth', 'hakAkses:general,superadmin,admin,internal'])->group(function () {
     Route::get('/absensi/pengguna', [AbsensiPenggunaController::class, 'rekapSaya'])->name('absensi.pengguna.saya');
 
-    // Fitur web presensi & izin siswa
+    // Fitur web presensi & izin
     Route::post('/presensi/siswa', [AbsensiController::class, 'storeSiswa'])->name('presensi-siswa.store');
 
     Route::get('/izin/siswa', [CutiController::class, 'izinSiswaIndex'])->name('siswa.izin.index');
@@ -74,7 +75,6 @@ Route::middleware(['auth', 'hakAkses:general,superadmin,admin'])->group(function
 | Eksklusif SuperAdmin & Internal Routes
 |--------------------------------------------------------------------------
 */
-// PERBAIKAN: Menambahkan 'internal' (Guru/Staff) agar bisa mengakses halaman ini
 Route::middleware(['auth', 'hakAkses:superadmin,internal'])->group(function () {
     // Absensi Guru & Staff (Superadmin & Internal)
     Route::get('/absensi-guru', [AbsensiController::class, 'absensiGuru'])->name('absensi.guru');
@@ -103,7 +103,6 @@ Route::middleware(['auth', 'hakAkses:superadmin,admin'])->group(function () {
         Route::get('/create', [PenggunaController::class, 'create'])->name('create');
         Route::post('/', [PenggunaController::class, 'store'])->name('store');
         
-        // Rute Kustom (Pastikan ditaruh sebelum /{id}/edit agar tidak bentrok)
         Route::get('/cek-tag', [PenggunaController::class, 'cekTag'])->name('cek_tag');
         Route::post('/bulk-destroy', [PenggunaController::class, 'bulkDestroy'])->name('bulk_destroy');
         
