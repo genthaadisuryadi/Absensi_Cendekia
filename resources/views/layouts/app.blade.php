@@ -10,7 +10,6 @@
     @endphp
     <!-- Menggunakan sintaks unescape untuk mencegah &amp muncul di title browser -->
     <title>{!! $pageTitle !!} · Absensi Cendekia</title>
-    <link rel="icon" href="{{ asset('favicon.png') }}" type="image/png">
 
     {{-- Font --}}
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -45,7 +44,6 @@
 @php
     $user = auth()->user();
 
-    // PERBAIKAN: Dibungkus dengan pengecekan user agar tidak error saat diakses tanpa login
     if ($user) {
         $jabatanStatus = $user->jabatanStatus;
         $hakAkses = $jabatanStatus?->hakAkses;
@@ -55,7 +53,9 @@
 
         $isAdmin = in_array($userRole, ['superadmin', 'admin', 'nusabot', 'full'], true);
         $isSuperAdmin = ($hakAksesId == 1 || in_array($userRole, ['superadmin', 'nusabot', 'full']));
-        $isGeneral = in_array($userRole, ['general', 'siswa'], true);
+        
+        // PERBAIKAN: Menambahkan 'internal' agar Guru/Staff dapat melihat menu Absensi Saya
+        $isGeneral = in_array($userRole, ['general', 'siswa', 'internal'], true);
         $isOrtu = in_array($userRole, ['orang_tua'], true);
 
         $cutiPending = 0;
@@ -79,20 +79,16 @@
             ],
         ];
 
-        // MEMBANGUN ARRAY MENU MANAJEMEN SECARA DINAMIS
         $menuAdmin = [
             ['url' => url('pengguna'), 'icon' => 'bi-people-fill', 'label' => 'Pengguna', 'active' => request()->is('pengguna*')],
         ];
 
-        // Menu Absensi Siswa (Untuk Admin & Superadmin)
         $menuAdmin[] = ['url' => url('absensi'), 'icon' => 'bi-person-check-fill', 'label' => 'Absensi Siswa', 'active' => request()->is('absensi') || request()->is('absensi/*') && !request()->is('absensi/pengguna*')];
 
-        // Menu Absensi Guru & Staff (KHUSUS SUPERADMIN)
         if ($isSuperAdmin) {
             $menuAdmin[] = ['url' => route('absensi.guru'), 'icon' => 'bi-person-badge-fill', 'label' => 'Absensi Guru & Staff', 'active' => request()->routeIs('absensi.guru*')];
         }
 
-        // Sisa Menu Manajemen
         $menuAdmin[] = ['url' => url('cuti'), 'icon' => 'bi-calendar-event-fill', 'label' => 'Cuti', 'active' => request()->is('cuti*'), 'badge' => $cutiPending];
         $menuAdmin[] = ['url' => url('libur_khusus'), 'icon' => 'bi-calendar2-heart-fill', 'label' => 'Tanggal Libur', 'active' => request()->is('libur_khusus*')];
         $menuAdmin[] = ['url' => url('mesin'), 'icon' => 'bi-cpu-fill', 'label' => 'Mesin', 'active' => request()->is('mesin*')];
@@ -105,7 +101,6 @@
         ];
         $settingOpen = collect($menuSetting)->contains('active', true);
     } else {
-        // Fallback Default jika belum login (Tamu / Guest)
         $isAdmin = false;
         $isSuperAdmin = false;
         $isGeneral = false;
@@ -188,7 +183,7 @@
                             </details>
                         </div>
 
-                    {{-- SISWA / GENERAL USER --}}
+                    {{-- SISWA / GURU / STAFF --}}
                     @elseif ($isGeneral)
                         <div class="nav-label sidebar-text">Absensi Saya</div>
                         <a href="{{ url('/absensi/pengguna') }}" title="Rekap Absensi"
