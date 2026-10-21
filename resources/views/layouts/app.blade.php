@@ -10,6 +10,7 @@
     @endphp
     <!-- Menggunakan sintaks unescape untuk mencegah &amp muncul di title browser -->
     <title>{!! $pageTitle !!} · Absensi Cendekia</title>
+    <link rel="icon" href="{{ asset('favicon.png') }}" type="image/png">
 
     {{-- Font --}}
     <link rel="preconnect" href="https://fonts.googleapis.com">
