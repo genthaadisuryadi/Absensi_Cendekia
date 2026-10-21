@@ -26,6 +26,7 @@ class Pengguna extends Authenticatable
         'cabang_gedung',
         'password',
         'aktif',
+        'foto_profil',
     ];
 
     protected $hidden = [
