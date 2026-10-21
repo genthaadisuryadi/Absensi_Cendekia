@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Absensi Guru & Staff')
+@section('title', 'Absensi Guru dan Staff')
 
 @section('content')
 <div class="p-6">
@@ -48,54 +48,100 @@
         </form>
     </div>
 
-    <!-- Tabel Data -->
-    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-        <div class="overflow-x-auto">
-            <table class="w-full text-sm text-left whitespace-nowrap">
-                <thead class="text-xs text-slate-500 uppercase bg-slate-50 border-b border-slate-100">
-                    <tr>
-                        <th class="px-6 py-4 font-semibold">Nama / NIP</th>
-                        <th class="px-6 py-4 font-semibold">Waktu Absen</th>
-                        <th class="px-6 py-4 font-semibold">Kategori</th>
-                        <th class="px-6 py-4 font-semibold">Status</th>
-                        <th class="px-6 py-4 font-semibold">Lokasi Gedung</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-slate-100">
-                    @forelse($absensiGuru as $absen)
-                    <tr class="hover:bg-slate-50/50 transition-colors">
-                        <td class="px-6 py-4">
-                            <div class="font-bold text-slate-800">{{ $absen->pengguna->nama ?? '-' }}</div>
-                            <div class="text-xs text-slate-500">NIP: {{ $absen->pengguna->nomor_induk ?? '-' }}</div>
-                        </td>
-                        <td class="px-6 py-4 font-medium text-slate-700">
-                            {{ $absen->display_absen }}
-                        </td>
-                        <td class="px-6 py-4">
-                            <span class="inline-flex px-2.5 py-1 rounded-md text-xs font-semibold 
-                                {{ $absen->kategori == 1 ? 'bg-indigo-50 text-indigo-600' : 
-                                  ($absen->kategori == 4 ? 'bg-amber-50 text-amber-600' : 'bg-slate-100 text-slate-600') }}">
-                                {{ $absen->kategori_label }}
-                            </span>
-                        </td>
-                        <td class="px-6 py-4 font-bold {{ $absen->warna }}">
-                            {{ $absen->status_label }}
-                        </td>
-                        <td class="px-6 py-4 text-slate-600">
-                            {{ $absen->pengguna->cabangGedung->lokasi ?? '-' }}
-                        </td>
-                    </tr>
-                    @empty
-                    <tr>
-                        <td colspan="5" class="px-6 py-10 text-center text-slate-500">
-                            <i class="bi bi-inbox text-3xl block mb-2 text-slate-300"></i>
-                            Belum ada data absensi guru & staff.
-                        </td>
-                    </tr>
-                    @endforelse
-                </tbody>
-            </table>
-        </div>
+    <!-- Tabel Data (Sudah Diintegrasikan dengan DataTables) -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-visible p-6">
+        <table id="tableAbsensiGuru" class="w-full text-sm border-collapse">
+            <thead class="bg-gray-50 text-gray-600 uppercase text-[11px] font-bold tracking-wider">
+                <tr>
+                    <th class="py-3 px-4">Nama</th>
+                    <th class="py-3 px-4">NIP</th>
+                    <th class="py-3 px-4">Waktu Absen</th>
+                    <th class="py-3 px-4">Kategori</th>
+                    <th class="py-3 px-4">Status</th>
+                    <th class="py-3 px-4">Lokasi Gedung</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+                @foreach($absensiGuru as $absen)
+                <tr class="hover:bg-indigo-50/30 transition">
+                    <td class="py-3 px-4 font-bold text-slate-800">
+                        {{ $absen->pengguna->nama ?? '-' }}
+                    </td>
+                    <td class="py-3 px-4 text-slate-600">
+                        {{ $absen->pengguna->nomor_induk ?? '-' }}
+                    </td>
+                    <td class="py-3 px-4 font-medium text-slate-700 whitespace-nowrap">
+                        {{ $absen->display_absen }}
+                    </td>
+                    <td class="py-3 px-4">
+                        <span class="inline-flex px-2.5 py-1 rounded-md text-xs font-semibold 
+                            {{ $absen->kategori == 1 ? 'bg-indigo-50 text-indigo-600' : 
+                              ($absen->kategori == 4 ? 'bg-amber-50 text-amber-600' : 'bg-slate-100 text-slate-600') }}">
+                            {{ $absen->kategori_label }}
+                        </span>
+                    </td>
+                    <td class="py-3 px-4 font-bold whitespace-nowrap {{ $absen->warna }}">
+                        {{ $absen->status_label }}
+                    </td>
+                    <td class="py-3 px-4 text-slate-600">
+                        {{ $absen->pengguna->cabangGedung->lokasi ?? '-' }}
+                    </td>
+                </tr>
+                @endforeach
+            </tbody>
+        </table>
     </div>
 </div>
+
+@push('scripts')
+<script>
+    $(document).ready(function() {
+        if ($.fn.DataTable.isDataTable('#tableAbsensiGuru')) {
+            $('#tableAbsensiGuru').DataTable().destroy();
+        }
+
+        $('#tableAbsensiGuru').DataTable({
+            pageLength: 10,
+            responsive: true,
+            dom: 'Bfrtip',
+            buttons: [
+                {
+                    extend: 'excel',
+                    text: 'Excel',
+                    title: 'Laporan Absensi Guru & Staff',
+                    filename: 'Laporan_Absensi_Guru',
+                    exportOptions: { columns: ':visible' }
+                },
+                {
+                    extend: 'pdf',
+                    text: 'PDF',
+                    title: 'Laporan Absensi Guru & Staff',
+                    filename: 'Laporan_Absensi_Guru',
+                    exportOptions: { columns: ':visible' }
+                },
+                {
+                    extend: 'print',
+                    text: 'Print',
+                    title: 'Laporan Absensi Guru & Staff',
+                    exportOptions: { columns: ':visible' }
+                },
+                'colvis'
+            ],
+            language: {
+                search: "Cari data:",
+                lengthMenu: "Tampilkan _MENU_ data",
+                info: "Menampilkan _START_ - _END_ dari _TOTAL_ data",
+                emptyTable: "Belum ada data absensi guru & staff yang ditemukan.",
+                paginate: {
+                    previous: "Sebelumnya",
+                    next: "Selanjutnya"
+                },
+                buttons: {
+                    colvis: 'Column visibility'
+                }
+            }
+        });
+    });
+</script>
+@endpush
 @endsection
