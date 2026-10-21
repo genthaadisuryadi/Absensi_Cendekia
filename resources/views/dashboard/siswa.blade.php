@@ -1,11 +1,23 @@
 @extends('layouts.app')
 
-@section('title', 'Dashboard Siswa')
-
-@section('content')
 @php
+    $hakAksesObj = auth()->user()?->jabatanStatus?->hakAkses;
+    $namaHakAkses = strtolower(trim($hakAksesObj->hak ?? ''));
+    $jabatan = auth()->user()?->jabatanStatus?->jabatan_status ?? 'Siswa';
+    
+    // Tentukan Judul Berdasarkan Hak Akses
+    if (in_array($namaHakAkses, ['general', 'siswa']) || strtolower($jabatan) === 'siswa') {$judulDashboard = 'Dashboard Siswa';
+    } else {
+        // Jika Guru / Staff (Internal)
+        $judulDashboard = 'Dashboard ' . ucfirst($jabatan);
+    }
+    
     $namaDepan = explode(' ', trim(auth()->user()->nama ?? auth()->user()->name ?? 'Siswa'))[0];
 @endphp
+
+@section('title', $judulDashboard)
+
+@section('content')
 <div class="space-y-6">
 
     {{-- Flash Messages --}}
@@ -50,7 +62,7 @@
                     <h2 class="text-2xl sm:text-4xl font-black m-0 tracking-tight drop-shadow-sm">{{ Auth::user()->nama ?? Auth::user()->name }}</h2>
                     <div class="flex items-center gap-3 mt-2 sm:mt-3">
                         <span class="bg-white/15 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-bold backdrop-blur-md border border-white/10 text-white shadow-sm flex items-center gap-1.5">
-                            <i class="bi bi-mortarboard-fill"></i> Pengguna
+                            <i class="bi bi-person-badge-fill"></i> {{ $jabatan }}
                         </span>
                         <span class="text-blue-100 text-xs sm:text-sm font-semibold bg-black/10 px-3 py-1.5 rounded-lg border border-black/5">
                             ID: {{ Auth::user()->nomor_induk }}
@@ -138,7 +150,7 @@
         </div>
 
         <div class="space-y-3">
-            @forelse ($riwayatTerbaru as $riwayat)
+            @forelse ($riwayatTerbaru as$riwayat)
                 <div class="flex items-center justify-between p-3 rounded-xl border border-slate-50 hover:bg-slate-50 transition-colors">
                     <div class="flex items-center gap-4">
                         <div class="w-12 h-12 rounded-lg bg-indigo-50 flex flex-col items-center justify-center text-indigo-600 font-bold border border-indigo-100/50">
@@ -161,7 +173,7 @@
                             $badgeClass = 'bg-amber-50 text-amber-700 border-amber-200';$iconClass  = 'bi-exclamation-triangle-fill';
                         } elseif (stripos($status, 'Pulang Cepat') !== false) {
                             $badgeClass = 'bg-blue-50 text-blue-700 border-blue-200';$iconClass  = 'bi-info-circle-fill';
-                        } elseif (stripos($status, 'Izin') !== false || stripos($status, 'Sakit') !== false) {
+                        } elseif (stripos($status, 'Izin') !== false \vert{}\vert{} stripos($status, 'Sakit') !== false) {
                             $badgeClass = 'bg-sky-50 text-sky-700 border-sky-200';$iconClass  = 'bi-file-medical-fill';
                         } else {
                             $badgeClass = 'bg-emerald-50 text-emerald-700 border-emerald-200';$iconClass  = 'bi-check-circle-fill';
