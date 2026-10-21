@@ -28,7 +28,7 @@ Route::match(['get', 'post'], '/absensi-machine', [AbsensiController::class, 'st
 | Authenticated User Routes (Semua Role)
 |--------------------------------------------------------------------------
 */
-Route::middleware(['auth', 'hakAkses:superadmin,admin,general,orang_tua'])->group(function () {
+Route::middleware(['auth', 'hakAkses:superadmin,admin,general,orang_tua,internal'])->group(function () {
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard.index');
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
@@ -71,11 +71,12 @@ Route::middleware(['auth', 'hakAkses:general,superadmin,admin'])->group(function
 
 /*
 |--------------------------------------------------------------------------
-| Eksklusif SuperAdmin Routes (Role: SuperAdmin)
+| Eksklusif SuperAdmin & Internal Routes
 |--------------------------------------------------------------------------
 */
-Route::middleware(['auth', 'hakAkses:superadmin'])->group(function () {
-    // Absensi Guru & Staff (Hanya Superadmin)
+// PERBAIKAN: Menambahkan 'internal' (Guru/Staff) agar bisa mengakses halaman ini
+Route::middleware(['auth', 'hakAkses:superadmin,internal'])->group(function () {
+    // Absensi Guru & Staff (Superadmin & Internal)
     Route::get('/absensi-guru', [AbsensiController::class, 'absensiGuru'])->name('absensi.guru');
 });
 
